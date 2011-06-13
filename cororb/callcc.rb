@@ -3,6 +3,8 @@
 # callcc.rb: a Fiber implementation for Ruby 1.8, based on callcc
 # by pts@fazekas.hu at Tue Nov 30 21:36:00 CET 2010
 #
+# SUXX: It has terrible memory leaks in Ruby 1.8.
+#
 # This script works in Ruby 1.9 (using the built-in Fiber class) and Ruby 1.8
 # (using the emulation provided here).
 #
@@ -40,37 +42,40 @@ class Fiber;
       @is_alive = true  # Can be resumed/transferred later.
       @resumed_by = false
       @thread = Thread.current
-      x = callcc { |cc| @cc = cc; return }
-      begin
-        # SUXX: TODO(pts):
-        # Even Proc.new(&block) doesn't prevent the LocalJumpError.
-        x = block.call(*x)
-        exc = nil
-      rescue Exception
-        exc = $!
-      end
-      @is_alive = false
-      block = nil  # Save memory.
-      # TODO(pts): Discard the current stack frame to reclaim memory.
-      # TODO(pts): Avoid creating local variables.
-      # Ruby 1.8 doesn't have tail recursion optimization, and 1.9.2 doesn't
-      # have it either, see also http://redmine.ruby-lang.org/issues/show/1256
-      if @resumed_by;
-        resumed_by = @resumed_by
-        @resumed_by = nil  # Break the reference to save memory.
-        # TODO(pts): Add a begin/rescue to the transfer call below.
-        if !resumed_by.alive?
-          # TODO(pts): Do we have to use the parant of resumed_by instead?
-          resumed_by = @@root
-          exc = FiberError.new('dead fiber called')
+      callcc { |cc1|
+        x = callcc { |cc2|
+          @cc = cc2
+          cc1.call
+        }
+        begin
+          x = block.call(*x)
+          exc = nil
+        rescue Exception
+          exc = $!
         end
-      else
-        resumed_by = @@root
-      end
-      @@goodbye_args.push(resumed_by, exc, x)
-      resumed_by = exc = x = nil  # Save memory.
-      @@goodbye.call()
-      fail "unreachable"  # TODO(pts): Optimize this away.
+        @is_alive = false
+        block = nil  # Save memory.
+        # TODO(pts): Discard the current stack frame to reclaim memory.
+        # TODO(pts): Avoid creating local variables.
+        # Ruby 1.8 doesn't have tail recursion optimization, and 1.9.2 doesn't
+        # have it either, see also http://redmine.ruby-lang.org/issues/show/1256
+        if @resumed_by;
+          resumed_by = @resumed_by
+          @resumed_by = nil  # Break the reference to save memory.
+          # TODO(pts): Add a begin/rescue to the transfer call below.
+          if !resumed_by.alive?
+            # TODO(pts): Do we have to use the parant of resumed_by instead?
+            resumed_by = @@root
+            exc = FiberError.new('dead fiber called')
+          end
+        else
+          resumed_by = @@root
+        end
+        @@goodbye_args.push(resumed_by, exc, x)
+        resumed_by = exc = x = nil  # Save memory.
+        @@goodbye.call()
+        fail "unreachable"  # TODO(pts): Optimize this away.
+      }
     end
   end
   def inspect()
@@ -85,7 +90,7 @@ class Fiber;
   def transfer(*args)
     raise FiberError, "dead fiber called" if !@is_alive
     raise FiberError, "fiber called across threads" if @thread != Thread.current
-       
+
     if self == @@current;
       fail if args.size > 1  # ruby 1.9.2 does this.
       return args[0]  # nil if args.empty?
@@ -103,7 +108,8 @@ class Fiber;
     raise x if x.kind_of? Exception
     x.size > 1 ? x : x[0]
   end
-  def resume(*args)
+  def resume()  #args)
+    return [0]
     # TODO(pts): Fix the error order.
     raise FiberError, "dead fiber called" if !@is_alive
     raise FiberError, "double resume" if @resumed_by
@@ -172,9 +178,9 @@ end if RUBY_VERSION < "1.9"
 
 # ---
 
-p RUBY_VERSION
 
-if true;
+if false;  # !!
+  p RUBY_VERSION
   root = Fiber.current
   fail if "can't yield from root fiber" != begin
     Fiber.yield
@@ -336,43 +342,67 @@ if true;
   fail if 17 != foo.transfer(27)
 end
 
-def f(n, root)
-  if n > 0;
-    return 1 + f(n - 1, root)
+if false;
+  def f(n, root)
+    if n > 0;
+      return 1 + f(n - 1, root)
+    end
+    while true;
+      root.transfer 5
+    end
   end
-  while true;
-    root.transfer 5
-  end
-end
 
-def g(n, fi)
-  if n > 0;
-    return 1 + g(n - 1, fi)
+  def g(n, fi)
+    if n > 0;
+      return 1 + g(n - 1, fi)
+    end
+    100000.times {
+      fail if 5 != fi.transfer
+    }
+    0
   end
-  100000.times {
-    fail if 5 != fi.transfer
-  }
-  0
+#depth = 230  # SystemStackError above that.
+#root = Fiber.current
+#g(depth, Fiber.new { f(depth, root) })
 end
 
 p "All OK."
 
-if false;
+class ZFiber
+  def f()
+    #callcc { |cc| @cc = cc; return }  # wastes
+    callcc { |cc1|  # wastes
+      callcc { |cc2|
+        @cc = cc2
+        cc1.call
+      }
+    }
+    self
+  end
+end
+
+def foo()
+  callcc { |cc| @cc = cc; return }
+end
+
+if true;
   GC.enable
   GC.start
   # SUXX: The Ruby 1.8 garbage collector doesn't get triggered automatically.
   # Wouldn't work even with 3GB of RAM wouth calling the GC manually.
-  Process.setrlimit(Process::RLIMIT_AS, 30 << 20)  # 30MB
+  Process.setrlimit(Process::RLIMIT_AS, 70 << 20)  # 30MB
   # On narancs at r171, 510 fits, 520 doesn't fit to 30MB -- so we do 5200.
-  (1..52000).each { |i|
-    fail if Fiber.new { [i] }.resume != [i]
+  (1..520000).each { |i|
+    #Fiber.new {}  # This itself doesn't waste memory.
+    #Fiber.new {}.alive?  # This itself wastes memory!
+    #ZFiber.new.object_id  # This itself wastes memory with return.
+    ZFiber.new.f  # This doesn't waste memory.
+    ZFiber.new.f.object_id  # This itself wastes memory with return.
+    #foo()  # This doesn't waste memory.
+    #fail if Fiber.new { [i * 0] }.resume != [0]
     #GC.start if (i & 127) == 0  # This fixes the problem.
   }
 end
-
-#depth = 230  # SystemStackError above that.
-#root = Fiber.current
-#g(depth, Fiber.new { f(depth, root) })
 
 # depth=230 iter=100000 ./callcc.rb  1.80s user 0.06s system 100% cpu 1.825 total
 # depth=2   iter=100000 ./callcc.rb  0.74s user 0.00s system 100% cpu 0.737 total
