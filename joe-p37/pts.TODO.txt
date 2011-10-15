@@ -1,0 +1,114 @@
+* load ~/.joe_state at startup (?)
+* print to last column (column 80) of the terminal (if available)
+        int w = t->co - x - 1;  /* Don't worry about last column */
+* add hide-first-character-of-line support, for visual merge + syntax highlight
+* add *w <Tab> completion to the `bufed' prompt
+* add list selection after <Tab> completion to all commands
+* add better config file preprocessing (preprocess_rc_line)
+* project: open files by pressing enter on a file list (based on error window)
+* allow backslash escape in buffer name matching (simple_cmplt)
+* make `bufed' show unnamed windows
+* make the `explode' command add a window for each buffer (if doesn't exist)
+* make `joe -orphan' default when loading: show only the first loaded file;
+  also add some statistics on all files
+  (File ... not changed is printed only if `joe -orphan' upon Ctrl-<K> <Q>)
+  (long-term `joe -orphan' is a bad idea, because we lose cursor position)
+* use buffer menu: dobuf() in ufile.c
+* unify get_buffer_in_window() with replace_b_in_bw(), remember
+  references external to ufile.c
+* understand new-macros exmacro(bw->o.mnew,1); and exmacro(bw->o.mold,1);
+* fix how Ctrl-<K> <Q> // Ctrl-<C> remove a buffer: it should load another,
+  yet offscreen buffer into the current window. If all buffers are onscreen,
+  unify with next or previous window, not touching other windows.
+  (the notion of window groups should be understood for this)
+* fix Ctrl-<K> <1>: 1st magnify current window; 2nd: restore window layout
+  before 1st (this is hard, we have to remember window layout) 
+* fix how Ctrl-<K> <1> and others create duplicate window with same buffer
+* understand on duplicate window with the same buffer, 2nd is never cycled on
+  unbufu?
+* get rid of the grep buffer with Ctrl-<K> <Q> (so it won't appear again
+  after Ctrk-<K> <N>); now it becomes orphaned(?)
+* add search/find by highlight color
+* add option not to highlight file if has a line >100000 chars at load time
+* optimize with P pbak and brc() instead of bgetc()
+* (long term) visual diff/merge, no automatic highlight (eptson Ctrl-<K> <0>)
+* restore proper o->charmap (not only UTF-8) after leaving hex mode
+* generalize `.joe-p37' to '-DDOTJOEDIR=".joe-p37"'
+* automatically export markb...markk to X11 selection (both) with pts-xclip
+* automatically import X11 selection with Ctrk-<K> <C> if there is no block
+  (no way to paste without auto-indent, xterm doesn't seem to have support
+  built in)
+* invert the full terminal row if the \n at EOL is selected (this won't show
+  trailing spaces)
+* analyze some segfaults
+* don't create new bw for `Error opening file', see use_berror in
+  replace_b_in_bw.
+* Ctrl-<K> <1> should show the buffer in the same order as Ctrl-<K> <N>
+  (currently it shows the current buffer at the top, and the others in that
+  order -- or somewhat more complicated, depending on how many windows were
+  visible when we opened the file?)
+* uduptw (`dupw') should redraw the new window (just as after Ctrl-<K> <1>
+  twice)
+* utag() should jump to the keyword being searched for inside the line
+* make utag() not clear the block
+
+# DONE: changed backspace to remove only one character if not in smart
+  backspace mode.
+# DONE: added flag file ~/.joe-p37/only.rc to skip system-level configuration
+# DONE: added ~/.joe-p37/termcap by default (for proper alt-g xterm support)
+# DONE: added config file preprocessing (preprocess_rc_line)
+# DONE: added history-search-forward commands fwrdhist and bkwdhist
+# DONE: added memory corruption detection to va.c and va.h
+# DONE: fixed memory corruption (vaadd(npbuf, ...) -> npbuf = vaad(npbuf, ...))
+  in termcap.c
+# DONE: fixed find_expr_end to swallow comma after a `...'
+# DONE: added \vvv to show version number in help
+# DONE: made Ctrl-<T> display the menu, as previously
+# DONE: added `saveother' command which keeps the buffer filename intact
+# DONE: added proper <Tab> support: indent if inside selection, otherwise
+  insert \t
+# DONE: changed window drawing code not to update the selection marks in a
+  grep--error window when scrolled
+# DONE: changed Ctrl-<K> <N> just to cycle if there are more windows
+# DONE: added comforable error navigation with grep, and bord current error
+  line highlighting in the error window
+# DONE: added $ to signify end of string in completions (simple_cmplt)
+# DONE: changed Ctrl-<K> <N> to display only offscreen buffers
+# DONE: fixed immediate status line update on resize, even without keepup
+# DONE: fixed most of replace_b_in_bw in ufile.c (doedit1, ubufed, doscratch,
+  unbufu, upbufu, ujump) to reuse existing windows and buffer positions
+# DONE: added Ctrl-<]> to jump to tag/error under cursor
+# DONE: fixed uarg (universal argument) for Alt-<1> etc.
+# DONE: combined multiple Ctrl-<Y> dellin command to an undo record
+# DONE: made prgetc() faster by making it look back only 6 bytes instead of
+  going back to BOL
+# DONE: speeded up p_goto_eol in UTF-8 and crlf buffers
+# DONE: fixed documentation of pfwrd() and pbkwd()
+# DONE: improved documentation of brzs()
+# DONE: made utaghere() and tag search error reporting more verbose
+# DONE: improved documentation of utf8_decode()
+# DONE: added uClibc autodetection (#ifdef __UCLIBC__) to umath.c
+# DONE: fixed restoring UTF-8 mode after leaving hex mode
+# DONE: improved speed of brch() in UTF-8 buffers
+# DONE: extended ustat() to show the byte length of a UTF-8 character
+# DONE: added loading fallback *joerc if *fancyjoerc is missing
+# DONE: added X11 selection import to Ctrl-<K> <C>, using pts-xclip
+# DONE: made unbufu() and upbufu() fetch the adjacent buffer with respoect
+  to bw->b
+# DONE: made uedit() re-enqueue the new buffer after the current one, so
+  upbufu() will go back to the current buffer
+# DONE: added window and BW pointer dumps to udebug_joe()
+# DONE: made uedit() safer on reload by making the reloaded buffer read-only
+# DONE: fixed b->count calculation in replace_b_in_bw()
+# DONE: made buffer interation (Ctrl-<K> <N> and Ctrl-<K> <P>) intuitive
+  * Ctrl-<K> <E> adds a new buffer (or moves existing buffer) after the
+    current buffer, so Ctrl-<K> <P> after Ctrl-<K> <E> goes back to the
+    original buffer
+  * Commands `switch', `tag', `nxterr' and `prverr' don't change the
+    buffer iteration order if the buffer is already loaded. If not loaded,
+    they behave like `edit' (Ctrl-<K> <E>), see above.
+# DONE: replaced get_buffer_in_window() replace_b_in_bw()
+# DONE: made utag() display count if tag found more than one time
+# DONE: added repeat arg for utag() to jump to subsequent definitions
+# DONE: simplified implementation of pgetc() for UTF-8
+
