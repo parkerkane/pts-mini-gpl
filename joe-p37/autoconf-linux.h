@@ -318,6 +318,3 @@
 
 /* Define as `fork' if `vfork' does not work. */
 /* #undef vfork */
-
-/**** pts ****/
-#define USEPTMX 1
