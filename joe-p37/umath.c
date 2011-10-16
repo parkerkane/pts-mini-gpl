@@ -375,8 +375,6 @@ static double eval(unsigned char *s)
 
 #ifdef __UCLIBC__  /* defined if gcc complies for the Linux uclibc target */
 #  undef  HAVE_ALL_MATH
-#else
-#  define HAVE_ALL_MATH 1
 #endif 
 
 double m_sin(double n) { return sin(n); }

@@ -1,5 +1,5 @@
 This directory contains joe-p37, and improved version of the text editor JOE
-(http://joe-editor.sourceforge.net/) v3.7.
+(http://joe-editor.sourceforge.net/) version 3.7.
 
 Improvements were started by Péter Szabó <pts@fazekas.hu> on 2008-11-08.
 
@@ -15,11 +15,14 @@ Most important improvements in joe-p37 over JOE:
 * Many segfault bugfixes.
 * Many small usability improvements.
 * Some performance improvements.
+* Supports compilation with uClibc (for small, portable, statically linked
+  binaries).
 
 Limitations of joe-p37:
 
-* Only Linux is supported now. Mac OS X may be added in the future.
-  The compiled binary runs on FreeBSD too.
+* Only Linux (tested on Ubuntu Lucid, should work on any Linux since 2005)
+  and Mac OS X (tested on 10.5 Leopard) are supported now.  The compiled
+  Linux binary runs on FreeBSD too.
 
 Compilation and tryout:
 

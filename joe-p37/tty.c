@@ -23,6 +23,11 @@
 
 #ifdef HAVE_OPENPTY
 
+#ifdef NEED_UTIL_H_FOR_OPENPTY
+#include <util.h>
+#endif
+
+
 #ifdef HAVE_PTY_H
 #include <pty.h>
 #endif
@@ -36,6 +41,9 @@
 #ifdef HAVE_LOGIN_TTY
 #ifdef HAVE_UTMP_H
 #include <utmp.h>
+#endif
+#ifdef NEED_UTIL_H_FOR_LOGIN_TTY
+#include <util.h>
 #endif
 #endif
 
