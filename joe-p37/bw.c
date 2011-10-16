@@ -514,10 +514,10 @@ static int lgen(SCRN *t, int y, int *screen, int *attr, int x, int w, P *p, long
 			else {
 				int wid = -1;
 				int utf8_char;
-				if (p->b->o.charmap->type) { /* UTF-8 */
-
+				if (p->b->o.charmap->type) {  /* UTF-8 char */
 					utf8_char = utf8_decode(&utf8_sm,bc);
 					if (utf8_char >= 0) { /* Normal decoded character */
+						/* joe_wcwidth always returns 1 on a non-UTF-8 terminal. */
 						wid = joe_wcwidth(1,utf8_char);
 					} else if(utf8_char== -1) { /* Character taken */
 						wid = -1;
@@ -534,22 +534,21 @@ static int lgen(SCRN *t, int y, int *screen, int *attr, int x, int w, P *p, long
 						utf8_char = '&';
 						c1 ^= UNDERLINE;
 					}
-				} else { /* Regular */
+				} else { /* Single-byte char. */
 					utf8_char = bc;
 					wid = 1;
 				}
 
-				if(wid>=0) {
-					if (x+wid > w) {
-						/* If multibyte character hits right most column, don't display it */
-						/* TODO(pts): Display the beginning of it, e.g. `<DFF' instead of `<<<' for U+DFF0. */
+				if (wid >= 0) {
+					if (x + wid > w && (utf8_char < 128 || !unictrl(utf8_char))) {
+						/* If multibyte character hits the rightmost column, don't display it */
 						while (x < w) {
 							outatr(bw->b->o.charmap, t, screen + x, attr + x, x, y, '>', (c1^UNDERLINE)|atr);
 							x++;
 						}
 					} else {
 						outatr(bw->b->o.charmap, t, screen + x, attr + x, x, y, utf8_char, c1|atr);
-						x += wid;
+						x += wid;  /* outatr() might write a bit less, because it stops just after the rightmost column. */
 					}
 				} else
 					--idx;

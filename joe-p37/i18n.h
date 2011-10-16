@@ -19,12 +19,19 @@ int joe_iswprint PARAMS((struct charmap *,int c));
 int joe_iswxdigit PARAMS((struct charmap *,int c));
 int joe_iswblank PARAMS((struct charmap *,int c));
 
+/* Returns printed width of control and other non-printable characters.
+ * Modified for JOE.
+ * Always returns a positive integer.
+ * Looking for wswidth? Take a look at scrn.c/txtwidth()
+ */
 int joe_wcwidth PARAMS((int wide,int c));
-/* Looking for wswidth? Take a look at scrn.c/txtwidth() */
 
 int joe_towupper PARAMS((struct charmap *,int c));
 int joe_towlower PARAMS((struct charmap *,int c));
 
+/* Returns bool.
+ * Returns true if c is a control character which should not be displayed.
+ */
 int unictrl PARAMS((int c));
 
 #endif

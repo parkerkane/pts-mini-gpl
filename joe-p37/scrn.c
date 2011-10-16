@@ -198,17 +198,60 @@ int set_attr(SCRN *t, int c)
 	return 0;
 }
 
-/* Output character with attributes */
+/* Inserts a space character at the current cursor position, and maybe move
+ * the cursor. The attr of the inserted character is undefined.
+ *
+ * The caller is responsible for modifying t->scrn and t->attr (possibly using
+ * memmove()).
+ *
+ * Don't call this function unless t->have_ins in true.
+ *
+ * Don't call this function in the rightmost column unless t->ce is true.
+ */
+static void ninsert1(SCRN *t) {
+	if (t->gtco > 0 && t->x == t->gtco - 1 && t->ce) {
+		texec(t->cap, t->ce, 1, 0, 0, 0, 0);
+	} else if (t->ic) {
+		/* TODO(pts): Do we have to emit t->ip? */
+		texec(t->cap, t->ic, 1, 0, 0, 0, 0);
+	      overwrite_null:
+		if (t->in) {
+			ttputc(' ');
+			++t->x;
+		}
+	} else if (t->IC) {
+        	texec(t->cap, t->IC, 1, 1, 0, 0, 0);
+        	goto overwrite_null;
+	} else if (t->im && t->ei) {
+		texec(t->cap, t->im, 1, 0, 0, 0, 0);
+		ttputc(' ');  /* Moves the cursor. */
+		++t->x;
+		texec(t->cap, t->ei, 1, 0, 0, 0, 0);
+	} else {
+		abort();
+	}
+}
 
+/* Is the insertion-based workaround needed when printing a character so
+ * that the cursor would be at after_column after the print?
+ */
+static char is_insert_needed(SCRN *t, int after_column, int yy) {
+	return (after_column == t->gtco && t->gtco > 0 &&  /* Attempt to print to the rightmost column of the terminal. */
+	        (t->wrap_mode == 1 ||  /* We use insertion to do the rightmost print. */
+	         (t->wrap_mode == 2 && yy == t->gtli - 1)));  /* We use insertion only in the bottom line to do the rightmost print. */
+}
+
+/* Output character with attributes */
 void outatr(struct charmap *map,SCRN *t,int *scrn,int *attrf,int xx,int yy,int c,int a)
 {
 	int control_attrs = 0;
+	int wid, len;
+	unsigned char buf[12];
+	char do_insert;
+	/* assert(xx < t->co); */
 	if(map->type) {
-		if(locale_map->type) {
-			/* UTF-8 char to UTF-8 terminal */
-			int wid;
+		if(locale_map->type) {  /* UTF-8 char to UTF-8 terminal */
 			int uni_ctrl = 0;
-			unsigned char buf[12];
 
 			/* Deal with control characters */
 			if (c<32) {
@@ -222,41 +265,74 @@ void outatr(struct charmap *map,SCRN *t,int *scrn,int *attrf,int xx,int yy,int c
 				uni_ctrl = 1;
 			}
 
-			if(*scrn==c && *attrf==a)
-				return;
-
-			wid = joe_wcwidth(1,c);
-
-			*scrn = c;
-			*attrf = a;
-			if(t->x != xx || t->y != yy)
-				cpos(t, xx, yy);
-			if(t->attrib != a)
-				set_attr(t, a);
 			if (uni_ctrl) {
-				int len = sprintf((char *)buf,"<%X>",c & (int)0x7fffffff);
-				if (len != wid) {  /* Usually doesn't happen. */
-					while (len < wid) {
-						buf[len++] = '~';
-					}
-					buf[wid] = '\0';
+				len = sprintf((char *)buf, "<%X>", c & (int)0x7fffffff);
+				wid = joe_wcwidth(1, c);
+				while (len < wid) {  /* Must never happen, joe_wcwidth() is designed to return the right width. */
+					buf[len++] = '~';
 				}
-				ttputs(buf);
+				if (xx + wid > t->co)  /* Truncate the hexdump to the rightmost column of the terminal. */
+					wid = t->co - xx;
+				buf[wid] = '\0';  /* Failsafe for ttputs. */
+				len = 0;
+				while (len < wid && scrn[len] == buf[len] && attrf[len] == a) {
+					++len;
+				}
+				if (len == wid)
+					return;
+				for (; len < wid; ++len) {
+					scrn[len] = buf[len];
+					attrf[len] = a;
+				}
 			} else {
 				/* Now c != 0 (so it's safe to call ttputs), it's escaped as a control character above. */
-				utf8_encode(buf,c);
-				ttputs(buf);
+				if(*scrn==c && *attrf==a)
+					return;
+				wid = joe_wcwidth(1, c);
+				utf8_encode(buf, c);
+				/* Now strlen(buf) might be more than wid,
+				 * typically wid == 1 and strlen(buf) >= 2
+				 * for latin accented letters.
+				 */
+			      print_wide:  /* Print (c, a, buf) when wid > 0. */
+				*scrn = c;
+				*attrf = a;
+				for (len = wid; --len > 0; ) {
+					scrn[len] = -1;
+					attrf[len] = 0;
+				}
 			}
-			t->x+=wid;
-			while (wid>1) {
-				*++scrn= -1;
-				*++attrf= 0;
-				--wid;
+
+			if (0 != (do_insert = is_insert_needed(t, xx + wid, yy))) {
+				--xx;
+			}
+		      print_wide_ca:
+			if (t->x != xx || t->y != yy)
+				cpos(t, xx, yy);
+			if (t->attrib != a)
+				set_attr(t, a);
+			ttputs(buf);
+			t->x += wid;
+			if (do_insert) {
+				cpos(t, xx, yy);
+				ninsert1(t);
+				--scrn;
+				--attrf;
+				while (xx > 0 && *scrn == -1) { /* Skip over multibyte character. */
+					--xx;
+					--scrn;
+					--attrf;
+				}
+				c = *scrn;
+				a = *attrf;
+				do_insert = 0;
+				wid = joe_wcwidth(1, c);
+				utf8_encode(buf, c);
+				goto print_wide_ca;  /* Re-print the character ruined by the insert above. */
 			}
 		} else {
 		      print_utf8_to_single:
 			/* UTF-8 char to non-UTF-8 terminal */
-			/* TODO(pts): Make it more similar to UTF-8 on UTF-8 */
 			/* Don't convert control chars below 256 */
 
 			if (c < 0 || unictrl(c)) {
@@ -287,16 +363,30 @@ void outatr(struct charmap *map,SCRN *t,int *scrn,int *attrf,int xx,int yy,int c
 
 			*scrn = c;
 			*attrf = a;
-			if(t->x != xx || t->y != yy)
+			if (0 != (do_insert = is_insert_needed(t, xx + 1, yy))) {
+				--xx;
+			}
+		      print_single_ca:
+			if (t->x != xx || t->y != yy)
 				cpos(t,xx,yy);
-			if(t->attrib != a)
-				set_attr(t,a);
+			if (t->attrib != a)
+				set_attr(t, a);
 			ttputc(c);
 			t->x++;
+			if (do_insert) {
+				cpos(t, xx, yy);
+				ninsert1(t);
+				c = *--scrn;
+				a = *--attrf;
+				do_insert = 0;
+				goto print_single_ca;  /* Re-print the character ruined by the insert above. */
+			}
+
+
 		}
 	} else {
 		if (!locale_map->type) {
-			/* Non UTF-8 char to non UTF-8 terminal */
+			/* Non-UTF-8 char to non-UTF-8 terminal */
 			/* Translate from map to Unicode to locale_map */
 
 			if (!joe_isprint(map,c)) {
@@ -311,10 +401,8 @@ void outatr(struct charmap *map,SCRN *t,int *scrn,int *attrf,int xx,int yy,int c
 			}
 			goto print_utf8_to_single;
 		} else {
-			/* Non UTF-8 char to UTF-8 terminal */
-			/* TODO(pts): Print multibyte characters (e.g. <DFF0>) if possible; also modify bw.c calling outatr so it knows the width. */
-			unsigned char buf[12];
-			int wid;
+			/* Non-UTF-8 char to UTF-8 terminal */
+			/* TODO(pts): Print multibyte characters (e.g. <DFF0>) if possible; also modify lgen() in bw.c (near `utf8_char = bc') calling outatr() so it knows the width. */
 
 			/* Deal with control characters */
 			if (!joe_isprint(map,c)) {
@@ -328,36 +416,25 @@ void outatr(struct charmap *map,SCRN *t,int *scrn,int *attrf,int xx,int yy,int c
 				} else if (!joe_isprint(locale_map, c)) {
 					control_attrs |= UNDERLINE;
 					c = '%';
+				} else if (unictrl(c)) {
+					control_attrs |= UNDERLINE;
+					c = '|';
 				}
 			}
 			a ^= control_attrs;
-			utf8_encode(buf,c);
-
 			if (*scrn == c && *attrf == a)
 				return;
-
-			wid = joe_wcwidth(0,c);
-			*scrn = c;
-			*attrf = a;
-			if(t->x != xx || t->y != yy)
-				cpos(t, xx, yy);
-			if(t->attrib != a)
-				set_attr(t, a);
-			ttputs(buf);
-			t->x+=wid;
-			while(wid>1) {
-				*++scrn= -1;
-				*++attrf= 0;
-				--wid;
-			}
+			wid = joe_wcwidth(0, c);  /* This always returns 1 because the 1st argument of joe_wcwidth is 0. */
+			utf8_encode(buf,c);
+			goto print_wide;
 		}
 	}
 
 	/* If we've just written to the last column, and the terminal didn't
-	 * wrap (because it has LP-style magicwrap), then we move the cursor
-	 * to a safe position so unexpected wrappings won't happen.
+	 * wrap (because it has LP or xn), then we move the cursor to a safe
+	 * position so unexpected wrappings won't happen.
 	 */
-	if (t->x == t->gtco && t->LP && t->gtco > 0) {
+	if (t->x == t->gtco && t->gtco > 0 && t->wrap_mode >= 2) {
 		ttputc('\r');  /* Move cursor to the beginning of the line. */
 		t->x = 0;
 	}
@@ -392,8 +469,9 @@ int eraeol(SCRN *t, int x, int y, int atr)
 		return 0;
 	s = t->scrn + y * t->co + x;
 	a = t->attr + y * t->co + x;
-	ss = s + w;
+	ss = s + w;  /* Start of line (y + 1) */
 	aa = a + w;
+	
 	do {
 		if (*--ss != ' ') {
 			++ss;
@@ -405,7 +483,10 @@ int eraeol(SCRN *t, int x, int y, int atr)
 		}
 	} while (ss != s);
 	cpos(t, x, y);
-	if ((ss - s > 3 || s[w] != ' ' || a[w] != atr || t->gtco > t->co) && t->ce) {
+	if ((ss - s > 3 ||  /* Too many columns to clear manually. */
+	     t->gtco > t->co ||  /* Terminal is wider than what joe uses. */
+	     (t->gtco == t->co && ss == s + w)  /* (t->wrap_mode != 0) Rightmost column of terminal to be cleared. */
+	    ) && t->ce) {
 		if(t->attrib != atr)
 			set_attr(t, atr); 
 		texec(t->cap, t->ce, 1, 0, 0, 0, 0);
@@ -415,12 +496,10 @@ int eraeol(SCRN *t, int x, int y, int atr)
 		if (t->attrib != atr)
 			set_attr(t, atr); 
 		while (s != ss) {
-			*s = ' ';
-			*a = atr;
+			*s++ = ' ';
+			*a++ = atr;
 			ttputc(' ');
 			++t->x;
-			++s;
-			++a;
 		}
 	}
 	return 0;
@@ -594,30 +673,13 @@ SCRN *nopen(CAP *cap)
 	if (!getflag(t->cap,USTR "ns") && !t->sf)
 		t->sf =USTR "\12";
 
-	if (!getflag(t->cap,USTR "in") && baud < 38400) {
-		t->dc = jgetstr(t->cap,USTR "dc");
-		t->DC = jgetstr(t->cap,USTR "DC");
-		t->dm = jgetstr(t->cap,USTR "dm");
-		t->ed = jgetstr(t->cap,USTR "ed");
-
-		t->im = jgetstr(t->cap,USTR "im");
-		t->ei = jgetstr(t->cap,USTR "ei");
-		t->ic = jgetstr(t->cap,USTR "ic");
-		t->IC = jgetstr(t->cap,USTR "IC");
-		t->ip = jgetstr(t->cap,USTR "ip");
-		t->mi = getflag(t->cap,USTR "mi");
-	} else {
-		t->dm = NULL;
-		t->dc = NULL;
-		t->DC = NULL;
-		t->ed = NULL;
-		t->im = NULL;
-		t->ic = NULL;
-		t->IC = NULL;
-		t->ip = NULL;
-		t->ei = NULL;
-		t->mi = 1;
-	}
+	/* Insert mode parameters. */
+	t->in = getflag(t->cap,USTR "in");
+	t->im = jgetstr(t->cap,USTR "im");
+	t->ei = jgetstr(t->cap,USTR "ei");
+	t->ic = jgetstr(t->cap,USTR "ic");
+	t->IC = jgetstr(t->cap,USTR "IC");
+	t->ip = jgetstr(t->cap,USTR "ip");
 
 	t->bs = NULL;
 	if (jgetstr(t->cap,USTR "bc"))
@@ -714,16 +776,11 @@ SCRN *nopen(CAP *cap)
 			mid = 1;
 	}
 
-/* Determine if we can ins/del within lines */
-	if ((t->im || t->ic || t->IC) && (t->dc || t->DC))
-		t->insdel = 1;
-	else
-		t->insdel = 0;
+	t->have_ins = (t->im && t->ei && t->ce) || t->ic || t->IC;
 
 /* Adjust for high baud rates */
 	if (baud >= 38400) {
 		t->scroll = 0;
-		t->insdel = 0;
 	}
 
 /* Send out terminal initialization string */
@@ -733,7 +790,7 @@ SCRN *nopen(CAP *cap)
 		texec(t->cap, t->cl, 1, 0, 0, 0, 0);
 
 /* Initialize variable screen size dependant vars */
-	t->li = t->co = t->gtli = t->gtco = 0;
+	t->wrap_mode = t->li = t->co = t->gtli = t->gtco = 0;
 	t->scrn = NULL;
 	t->attr = NULL;
 	t->sary = NULL;
@@ -768,21 +825,29 @@ int nresize(SCRN *t, int wid, int hei, int is_from_ttgtsz)
 		hei = 4;
 	if (wid < 8)
 		wid = 8;
+	t->wrap_mode = 0;
 	if (t->gtco > 8) {
-		/* Don't write to the rightmost column, because proper cursor
-		 * wrapping code is missing from joe.
-		 */
-		if (wid > t->gtco)
+		if (wid >= t->gtco) {
 			wid = t->gtco;
-		/* If we are not 100% sure that the terminal can write to
-		 * the rightmost column without wrapping and scrolling, then
-		 * we just play safe and don't write anything to the
-		 * rightmost column.
-		 */
-		if (wid == t->gtco && !t->LP)
-			--wid;
+			/* We need t->ce in wrap_mode for eraeol(). */
+			/* These `if' branches are in decreasing order of
+			 * simplicity and required bandwidth to the terminal.
+			 */
+			if (t->ce && t->LP) {
+				t->wrap_mode = 3;
+			} else if (t->ce && t->xn && t->have_ins) {
+				t->wrap_mode = 2;
+			} else if (t->ce && t->have_ins) {
+				t->wrap_mode = 1;
+			} else {
+				--wid;
+			}
+		}
 	} else {
-		/* Ditto about not writing to the rightmost column. */
+		/* Don't write to the rightmost column, because we can't
+		 * guarantee that the cursor won't wrap and the screen won't
+		 * scroll.
+		 */
 		--wid;
 	}
 	
@@ -1759,11 +1824,11 @@ void genfield(SCRN *t,int *scrn,int *attr,int x,int y,int ofst,unsigned char *s,
 				wid = joe_wcwidth(1,c);
 		} else {
 			/* Byte mode: character is one column wide */
-			wid = 1 ;
+			wid = 1;
 		}
 		if (wid>=0) {
 			if (col >= ofst) {
-				if (x + wid > last_col) {
+				if (x + wid > last_col /*&& (c < 128 || !unictrl(c))*/) {
 					/* Character crosses end of field, so fill balance of field with '>' characters instead */
 					while (x < last_col) {
 						outatr(locale_map, t, scrn, attr, x, y, '>', UNDERLINE^my_atr);
@@ -1773,6 +1838,7 @@ void genfield(SCRN *t,int *scrn,int *attr,int x,int y,int ofst,unsigned char *s,
 					}
 				} else if(wid) {
 					/* Emit character */
+					/* TODO(pts): Tell outatr where to stop at a partially written unictrl(c). */
 					outatr(locale_map, t, scrn, attr, x, y, c, my_atr);
 					x += wid;
 					scrn += wid;

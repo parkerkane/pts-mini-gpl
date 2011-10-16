@@ -220,6 +220,10 @@ int udebug_joe(BW *bw)
 	binss(bw->cursor, buf);
 	pnextl(bw->cursor);
 
+	joe_snprintf_1(buf, sizeof(buf), "wrap_mode=%d\n", bw->t->t->wrap_mode);
+	binss(bw->cursor, buf);
+	pnextl(bw->cursor);
+
 	return 0;
 }
 

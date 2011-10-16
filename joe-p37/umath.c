@@ -499,6 +499,9 @@ double calc(BW *bw, unsigned char *s)
 	v = get(USTR "no_windows");
 	v->val = countmain(bw->parent->t);
 	v->set = 1;
+	v = get(USTR "wrap_mode");
+	v->val = bw->t->t->wrap_mode;
+	v->set = 1;
 	merr = 0;
 	return eval(s);
 }

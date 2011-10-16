@@ -22,8 +22,19 @@ struct scrn {
 	int	gtco;		/* Screen width,  as reported by ttgtsz, or 0 */
 
 	/* Basic abilities */
-	int	scroll;		/* Set to use scrolling */
-	int	insdel;		/* Set to use insert/delete within line */
+	char	scroll;		/* Set to use scrolling */
+	/* How to print to the rightmost column of the terminal?
+	 *
+	 * 0: Don't even attempt to print anything there.
+	 * 1: Print one column before, and use character insertion.
+	 * 2: Use insertion for the bottom line, magicwrap (xn) otherwise.
+	 * 3: Use magicwrap (xn and LP) in all lines.
+	 *
+	 * Please note that (t->wrap_mode != 0) is equivalent to
+	 * (t->co == t->gtco).
+	 */
+	char	wrap_mode;
+	char have_ins;  /* Is character insertion is available (except for the rightmost column)? */
 
 #ifdef __MSDOS__
 	short	*scrn;		/* Buffer */
@@ -79,9 +90,8 @@ struct scrn {
 	int	rr;		/* Set for scrolling region relative addressing */
 	unsigned char	*sf, *SF, *sr, *SR;	/* Scroll */
 
-	unsigned char	*dm, *dc, *DC, *ed;	/* Delete characters */
 	unsigned char	*im, *ic, *IC, *ip, *ei;	/* Insert characters */
-	int	mi;		/* Set if ok to move while in insert mode */
+	int	in;  /* Terminal inserts null bytes, not spaces, to fill whitespace */
 
 	unsigned char	*bs;		/* Move cursor left 1 */
 	int	cbs;
