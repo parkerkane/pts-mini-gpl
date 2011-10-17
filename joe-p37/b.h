@@ -268,8 +268,14 @@ unsigned char *brmem PARAMS((P *p, unsigned char *blk, int size));
 
 /* Copy 'size' bytes from a buffer beginning at p into a zero-terminated
  * C-string in an malloc block.
+ *
+ * retval[size] = '\0' will be set.
  */
 unsigned char *brs PARAMS((P *p, int size));
+
+/* Like brs(p, size), but allocates more memory if extrasize > 1.
+ */
+unsigned char *brs_extraalloc PARAMS((P *p, int size, int extrasize));
 
 /* Copy 'size' bytes from a buffer beginning at p into a variable length string. */
 unsigned char *brvs PARAMS((P *p, int size));

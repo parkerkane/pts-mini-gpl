@@ -405,12 +405,20 @@ int main(int argc, char **real_argv, char **envv)
 			goto donerc;
 	}
 
-	/* Try built-in joerc */
+	/* Try built-in *fancyjoerc, e.g. "*joe-p37rc" */
 	vsrm(s);
 	s = vsncpy(NULL, 0, sc("*"));
 	s = vsncpy(sv(s), sv(run));
 	s = vsncpy(sv(s), sc("rc"));
 	c = procrc(cap, s);
+	if (c != 0 && c != 1) {
+		/* If built-in *fancyjoerc not present, process builtin "*joerc",
+		 * which is always present.
+		 */
+		s = vstrunc(s, 0);
+		s = vsncpy(sv(s), sc("*joerc"));
+		c = procrc(cap, s);
+	}
 	if (c == 0)
 		goto donerc;
 	if (c == 1) {

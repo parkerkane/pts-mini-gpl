@@ -2907,6 +2907,15 @@ unsigned char *brs(P *p, int size)
 	return brmem(p, s, size);
 }
 
+unsigned char *brs_extraalloc(P *p, int size, int extrasize)
+{
+	unsigned char *s = (unsigned char *) joe_malloc(
+	    size + (extrasize <= 1 ? 1 : extrasize));
+
+	s[size] = 0;
+	return brmem(p, s, size);
+}
+
 unsigned char *brvs(P *p, int size)
 {
 	unsigned char *s = vstrunc(NULL, size);

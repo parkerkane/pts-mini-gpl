@@ -356,7 +356,7 @@ void wrapword(BW *bw, P *p, long int indent, int french, int no_over, unsigned c
 
 			indent = nindent(bw, s, 1);
 			pcol(r, indent);
-			indents = brs(s, r->byte - s->byte);
+			indents = brs_extraalloc(s, r->byte - s->byte, 2);
 			prm(r);
 			if (!bw->o.autoindent) {
 				/* Don't indent second line of single-line paragraphs if autoindent is off */
@@ -559,7 +559,7 @@ int uformat(BW *bw)
 		int x, y;
 		indent = nindent(bw, p, 1); /* allowing * and - here */
 		pcol(r, indent);
-		indents = brs(p, r->byte - p->byte);
+		indents = brs_extraalloc(p, r->byte - p->byte, 2);
 		prm(r);
 		if (!bw->o.autoindent) {
 			/* Don't indent second line of single-line paragraphs if autoindent is off */
