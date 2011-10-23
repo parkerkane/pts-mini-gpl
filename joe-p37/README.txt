@@ -12,7 +12,7 @@ Most important improvements in joe-p37 over JOE:
 * Safe terminal handling: never writes characters to the terminal which
   garble the screen.
 * Correct Unicode, UTF-8 and encoding handling.
-* Consistent buffer ordering in single window mode: `^K q' inserts the newly
+* Consistent buffer ordering in single window mode: `^K e' inserts the newly
   opened file after the current buffer; `^K q' returns to the previous
   buffer; the relative order of the unaffected buffers are always preserved.
 * Many segfault bugfixes.
