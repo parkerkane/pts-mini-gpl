@@ -12,6 +12,9 @@ Most important improvements in joe-p37 over JOE:
 * Safe terminal handling: never writes characters to the terminal which
   garble the screen.
 * Correct Unicode, UTF-8 and encoding handling.
+* Consistent buffer ordering in single window mode: `^K q' inserts the newly
+  opened file after the current buffer; `^K q' returns to the previous
+  buffer; the relative order of the unaffected buffers are always preserved.
 * Many segfault bugfixes.
 * Many small usability improvements.
 * Some performance improvements.
@@ -55,6 +58,7 @@ Compilation and tryout:
     http://downloads.sourceforge.net/project/joe-editor/JOE%20sources/joe-3.7/joe-3.7.tar.gz
 
   Please note that joe-p37 works reasonably well without any config files.
-  The most important feature you will m
+  The most important feature you will miss is syntax highlighted, because
+  that has to be loaded from external .jsf files.
 
 __EOF__

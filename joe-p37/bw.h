@@ -23,7 +23,6 @@ struct bw {
 	void	*object;
 
 	int	linums;
-	int	top_changed;	/* Top changed */
 	struct lattr_db *db;	/* line attribute database */
 };
 
@@ -37,7 +36,7 @@ void bwins PARAMS((BW *bw, long int l, long int n, int flg));
 void bwdel PARAMS((BW *bw, long int l, long int n, int flg));
 void bwgen PARAMS((BW *bw, int linums));
 void bwgenh PARAMS((BW *bw));
-BW *bwmk PARAMS((W *window, B *b, int prompt));
+BW *bwmk_takeref PARAMS((W *window, B *b, int prompt));
 void bwmove PARAMS((BW *bw, int x, int y));
 void bwresz PARAMS((BW *bw, int wi, int he));
 void bwrm PARAMS((BW *bw));

@@ -318,7 +318,7 @@ B *bmk(B *prop)
 	return bmkchn(halloc(), prop, 0L, 0L);
 }
 
-/* Eliminate a buffer */
+/* Decrease refcound and eliminate a buffer if no more refs. */
 void brm(B *b)
 {
 	if (b && !--b->count) {
@@ -1559,7 +1559,7 @@ P *prifind(P *p, unsigned char *s, int len)
 	}
 }
 
-/* copy text between 'from' and 'to' into new buffer */
+/* copy text between 'from' and 'to' into new buffer, and return it */
 B *bcpy(P *from, P *to)
 {
 	H anchor, *l;
@@ -2026,7 +2026,7 @@ static void fixupins(P *p, long amnt, long nlines, H *hdr, int hdramnt)
 }
 
 /* Insert a buffer at pointer position (the buffer goes away) */
-P *binsb(P *p, B *b)
+P *binsb_decref(P *p, B *b)
 {
 	if (b->eof->byte) {
 		P *q = pdup(p, USTR "binsb");
@@ -2125,7 +2125,7 @@ static int bkread(int fi, unsigned char *buff, int size)
 
 /* Read up to 'max' bytes from a file into a buffer */
 /* Returns with 0 in error or -2 in error for read error */
-B *bread(int fi, long int max)
+B *bread_incref(int fi, long int max)
 {
 	H anchor, *l;
 	long lines = 0, total = 0;
@@ -2330,7 +2330,7 @@ unsigned char *dequote(unsigned char *s)
  * -3 for seek error
  * -4 for open error
  */
-B *bload(unsigned char *s)
+B *bload_incref(unsigned char *s)
 {
 	unsigned char buffer[SEGSIZ];
 	FILE *fi = 0;
@@ -2344,7 +2344,7 @@ B *bload(unsigned char *s)
 	struct stat sbuf;
 
 	if (!s || !s[0]) {
-		berror = -1;
+		berror = BERROR_NEW_FILE;
 		b = bmk(NULL);
 		setopt(b,USTR "");
 		b->rdonly = b->o.readonly;
@@ -2398,7 +2398,7 @@ B *bload(unsigned char *s)
 	/* Abort if couldn't open */
 	if (!fi) {
 		if (errno == ENOENT)
-			berror = -1;
+			berror = BERROR_NEW_FILE;
 		else
 			berror = -4;
 		b = bmk(NULL);
@@ -2427,7 +2427,7 @@ B *bload(unsigned char *s)
 	}
 
 	/* Read from stream into new buffer */
-	b = bread(fileno(fi), amnt);
+	b = bread_incref(fileno(fi), amnt);
 	empty:
 	b->mod_time = mod_time;
 	setopt(b,n);
@@ -2468,7 +2468,7 @@ opnerr:
 
 	/* If first line has CR-LF, assume MS-DOS file */
 	if (guesscrlf) {
-		p=pdup(b->bof, USTR "bload");
+		p=pdup(b->bof, USTR "bload_incref");
 		b->o.crlf = 0;
 		for(x=0;x!=1024;++x) {
 			int c = pgetc(p);
@@ -2499,7 +2499,7 @@ opnerr:
 		int maxi;
 		found_space = 0;
 		found_tab = 0;
-		p=pdup(b->eof, USTR "bload");
+		p=pdup(b->eof, USTR "bload_incref");
 		/* Create histogram of indentation values */
 		for (y = 0; y != 50; ++y) {
 			p_goto_bol(p);
@@ -2559,13 +2559,24 @@ opnerr:
 	return b;
 }
 
-/* Find already loaded buffer or load file into new buffer */
-B *bfind(unsigned char *s)
+B* b_incref(B *b) {
+	if (b->orphan) {
+		b->orphan = 0;
+	} else {
+		++b->count;
+	}
+	return b;
+}
+
+/* Find already loaded buffer or load file into new buffer.
+ * Bumps b->count, unorphans b, sets b->internal to 0.
+ */
+B *bfind_incref(unsigned char *s)
 {
 	B *b;
 
 	if (!s || !s[0]) {
-		berror = -1;
+		berror = BERROR_NEW_FILE;
 		b = bmk(NULL);
 		setopt(b,USTR "");
 		b->rdonly = b->o.readonly;
@@ -2575,26 +2586,24 @@ B *bfind(unsigned char *s)
 	}
 	for (b = bufs.link.next; b != &bufs; b = b->link.next)
 		if (b->name && !zcmp(s, b->name)) {
-			if (!b->orphan)
-				++b->count; /* Assumes caller is going to put this in a window! */
-			else
-				b->orphan = 0;
 			berror = 0;
 			b->internal = 0;
-			return b;
+			return b_incref(b);
 		}
-	b = bload(s); /* Returns count==1 */
+	b = bload_incref(s); /* Returns b with b->count == 1. */
 	b->internal = 0;
 	return b;
 }
 
-/* Find already loaded buffer or load file into new buffer */
-B *bfind_scratch(unsigned char *s)
+/* Find already loaded buffer or creates an empty buffer.
+ * Bumps b->count, unorphans b, sets b->internal to 0.
+ */
+B *bfind_scratch_incref(unsigned char *s)
 {
 	B *b;
 
 	if (!s || !s[0]) {
-		berror = -1;
+		berror = BERROR_NEW_FILE;
 		b = bmk(NULL);
 		setopt(b,USTR "");
 		b->rdonly = b->o.readonly;
@@ -2604,30 +2613,18 @@ B *bfind_scratch(unsigned char *s)
 	}
 	for (b = bufs.link.next; b != &bufs; b = b->link.next)
 		if (b->name && !zcmp(s, b->name)) {
-			if (!b->orphan)
-				++b->count;
-			else
-				b->orphan = 0;
 			berror = 0;
 			b->internal = 0;
-			return b;
+			return b_incref(b);
 		}
 	b = bmk(NULL);
-	berror = -1;
+	berror = BERROR_NEW_FILE;
 	setopt(b,s);
 	b->internal = 0;
 	b->rdonly = b->o.readonly;
 	b->er = berror;
 	b->name = zdup(s);
 	b->scratch = 1;
-	return b;
-}
-
-B *bfind_reload(unsigned char *s)
-{
-	B *b;
-	b = bload(s);
-	b->internal = 0;
 	return b;
 }
 

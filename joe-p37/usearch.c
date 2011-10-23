@@ -802,13 +802,13 @@ static void goback(SRCH *srch, BW *bw)
 	SRCHREC *r = srch->recs.link.prev;
 
 	if (r != &srch->recs) {
-		srch->current = r->b;
+		srch->current = r->b;  /* TODO(pts): Do we need a refcount on b here? */
 		if (r->yn) {
 			uundo(bw);
 		}
 		if (r->b != bw->b) {
 			W *w = bw->parent;
-			get_buffer_in_window(bw, r->b);
+			replace_b_in_bw(bw, r->b, /*do_orphan:*/1, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0);
 			bw = (BW *)w->object;
 		}
 		if (bw->cursor->byte != r->addr)
@@ -937,8 +937,7 @@ static int fnext(BW *bw, SRCH *srch)
 		if (b && b != srch->first && !berror) {
 			W *w = bw->parent;
 			srch->current = b;
-			/* this bumps reference count of b */
-			get_buffer_in_window(bw, b);
+			replace_b_in_bw(bw, b, /*do_orphan:*/1, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0);
 			bw = (BW *)w->object;
 			p_goto_bof(bw->cursor);
 			goto again;

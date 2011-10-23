@@ -87,7 +87,7 @@ static void doundo(BW *bw, UNDOREC *ptr)
 			B *b = ptr->big;
 
 			bonline(b);
-			binsb(bw->cursor, bcpy(b->bof, b->eof));
+			binsb_decref(bw->cursor, bcpy(b->bof, b->eof));
 			boffline(b);
 		}
 	} else {
@@ -274,7 +274,7 @@ static void yankdel(long where, B *b)
 					joe_free(rec->small);
 				}
 				bonline(rec->big);
-				binsb(rec->big->eof, bcpy(b->bof, b->eof));
+				binsb_decref(rec->big->eof, bcpy(b->bof, b->eof));
 				boffline(rec->big);
 			} else {
 				rec->small = (unsigned char *) joe_realloc(rec->small, rec->len + size);
@@ -290,7 +290,7 @@ static void yankdel(long where, B *b)
 					joe_free(rec->small);
 				}
 				bonline(rec->big);
-				binsb(rec->big->bof, bcpy(b->bof, b->eof));
+				binsb_decref(rec->big->bof, bcpy(b->bof, b->eof));
 				boffline(rec->big);
 			} else {
 				rec->small = (unsigned char *) joe_realloc(rec->small, rec->len + size);
@@ -346,7 +346,7 @@ void undodel(UNDO *undo, long where, B *b)
 				joe_free(rec->small);
 			}
 			bonline(rec->big);
-			binsb(rec->big->eof, b);
+			binsb_decref(rec->big->eof, b);
 			boffline(rec->big);
 		} else {
 			rec->small = (unsigned char *) joe_realloc(rec->small, rec->len + size);
@@ -363,7 +363,7 @@ void undodel(UNDO *undo, long where, B *b)
 				joe_free(rec->small);
 			}
 			bonline(rec->big);
-			binsb(rec->big->bof, b);
+			binsb_decref(rec->big->bof, b);
 			boffline(rec->big);
 		} else {
 			rec->small = (unsigned char *) joe_realloc(rec->small, rec->len + size);
@@ -410,7 +410,7 @@ int uyank(BW *bw)
 			B *b = ptr->big;
 
 			bonline(b);
-			binsb(bw->cursor, bcpy(b->bof, b->eof));
+			binsb_decref(bw->cursor, bcpy(b->bof, b->eof));
 			boffline(b);
 		}
 		pfwrd(bw->cursor, ptr->len);

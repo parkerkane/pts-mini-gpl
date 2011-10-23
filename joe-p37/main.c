@@ -19,6 +19,13 @@ int help;
 
 Screen *maint;			/* Main edit screen */
 
+void fatal(const unsigned char *msg) {
+  fflush(stdout);
+  fprintf(stderr, "\r\n\r\nJOE fatal error: %s\r\n\r\n", msg);
+  fflush(stderr);
+  abort();
+}
+
 /* Make windows follow cursor */
 
 void dofollows(void)
@@ -478,7 +485,7 @@ int main(int argc, char **real_argv, char **envv)
 	maint = screate(n);
 	vmem = vtmp();
 
-	startup_log = bfind_scratch(USTR "* Startup Log *");
+	startup_log = bfind_scratch_incref(USTR "* Startup Log *");
 	startup_log->internal = 1;
 
 	load_state();
@@ -499,7 +506,7 @@ int main(int argc, char **real_argv, char **envv)
 			if (glopt(argv[c] + 1, argv[c + 1], NULL, 0) == 2)
 				++c;
 		} else {
-			B *b = bfind(argv[c]);
+			B *b = bfind_incref(argv[c]);
 			BW *bw = NULL;
 			int er = berror;
 
@@ -509,9 +516,9 @@ int main(int argc, char **real_argv, char **envv)
 			setup_history(&filehist);
 			append_history(filehist,sz(argv[c]));
 
-			/* wmktw inserts the window before maint->curwin */
+			/* wmktw_takeref() inserts the window before maint->curwin */
 			if (!orphan || !opened) {
-				bw = wmktw(maint, b);
+				bw = wmktw_takeref(maint, b);
 				if (er)
 					msgnwt(bw->parent, joe_gettext(msgs[-er]));
 			} else {
@@ -577,7 +584,7 @@ int main(int argc, char **real_argv, char **envv)
 		dofollows();
 		mid = omid;
 	} else {
-		BW *bw = wmktw(maint, bfind(USTR ""));
+		BW *bw = wmktw_takeref(maint, bfind_incref(USTR ""));
 
 		if (bw->o.mnew)
 			exmacro(bw->o.mnew,1);
@@ -585,8 +592,8 @@ int main(int argc, char **real_argv, char **envv)
 	maint->curwin = maint->topwin;
 
 	if (startup_log->eof->byte) {
-		BW *bw = wmktw(maint, startup_log);
-		startup_log = 0;
+		BW *bw = wmktw_takeref(maint, startup_log);
+		startup_log = NULL;
 		maint->curwin = bw->parent;
 		wshowall(maint);
 		uparserr(bw);

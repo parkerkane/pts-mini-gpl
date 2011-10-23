@@ -578,23 +578,11 @@ int ublksave(BW *bw)
 	}
 }
 
-static int count_onscreen_main_windows(Screen *t) {
-	int nmain = 1;
-	W *m = t->curwin->main;
-	W *q;
-	/* TODO(pts): Similar implementation, but no ->main in unextvw(). */
-	for (q = t->curwin->link.next; q != t->curwin; q = q->link.next)
-		if (q->main != m) {
-			if ((q->watom->what&TYPETW) && q->y >= 0)
-				++nmain;
-			m = q->main;
-		}
-	return nmain;
-}
-
 static W* find_onscreen_window(B *b, Screen *t) {
 	W *w0 = t->curwin;
 	W *w = w0;
+	if (b->orphan)
+		return NULL;
 	while (1) {
 		if (w->y >= 0 && (w->watom->what&TYPETW) &&
 		    ((BW*)w->object)->b == b) return w;
@@ -606,6 +594,8 @@ static W* find_onscreen_window(B *b, Screen *t) {
 static W* find_offscreen_window(B *b, Screen *t) {
 	W *w0 = t->curwin;
 	W *w = w0;
+	if (b->orphan)
+		return NULL;
 	while (1) {
 		if (w->y < 0 && (w->watom->what&TYPETW) &&
 		    ((BW*)w->object)->b == b) return w;
@@ -635,6 +625,7 @@ static int swap_bw_with_offscreen_window(W *w, W *ow) {
 	return 0;
 }
 
+/* Also updates b->count and the reference count of all affected B()s properly. */
 int replace_b_in_bw(BW *bw, B *b, int do_orphan, int do_restore, int use_berror, int do_macros) {
 	W *w = bw->parent;
 	W *ow;
@@ -644,7 +635,7 @@ int replace_b_in_bw(BW *bw, B *b, int do_orphan, int do_restore, int use_berror,
 	      easy_return:
 		if (use_berror) {
 			msgnwt(w, joe_gettext(msgs[-use_berror]));
-			if (use_berror != -1) {
+			if (use_berror != BERROR_NEW_FILE) {
 				ret = -1;
 			}
 		}
@@ -654,60 +645,64 @@ int replace_b_in_bw(BW *bw, B *b, int do_orphan, int do_restore, int use_berror,
         	goto easy_return;
         }
 
-        /* Ensure that the old buffer (bw->b) is in another BW in addition to
+        /* Ensure that the old buffer (bw->b) is in another W--BW in addition to
          * bw.
          */
 	if (bw->b->count == 1 && (bw->b->changed || bw->b->name)) {
 		if (do_orphan) {
 			orphit(bw);
 		} else {
-			if (uduptw(bw)) {
+			/* We reach this with bw containing the old buffer at
+			 * `^K e' when only a single window is visible.
+			 */
+			if (uduptw(bw)) {  /* Create new hidden window containing bw->b, but keep bw as the current window. */
 				brm(b);
 				return -1;
 			}
-			bw = (BW *) w->t->curwin->object; /* the new, replaced, onscreen bw */
+			/* Since uduptw(bw) has hidden the original bw, and is now
+			 * showing the duplicate instead, we should update the
+			 * duplicate instead.
+			 */
+			/* TODO(pts): Write a version of uduptw(bw) which keeps showing the original and hides the duplicate. */
+			bw = (BW*)w->t->curwin->object;  /* The newly created BW. */
 			w = bw->parent;
 		}
 	}
 
 	if (use_berror) {
-		/* TODO(pts): Check this (i.e. permission denied opening file */
+		/* TODO(pts): Check if we do the right thing here. Another option would be returning without changing bw. */
+		/* If use_berror != 0, then b is a "New file" or "Error opening file" placeholder buffer. */
 		msgnwt(w, joe_gettext(msgs[-use_berror]));
-		if (use_berror != -1) {
+		if (use_berror != BERROR_NEW_FILE) {
 			ret = -1;
 		}
-#if 0  /* b is a "New file" or "Error opening file" placeholder buffer. */
-		brm(b);
-		return ret;
-#endif
 	}
 
         /* Replace the contents of w with b, by creating a new BW. */
-	{	void *object = bw->object;
+	{
+		void *object = bw->object;  /* TW */
 		ow = find_onscreen_window(b, w->t);
 		if (ow == NULL) ow = find_offscreen_window(b, w->t);
-		bwrm(bw);  /* This includes --bw->b->count. */
-		/* bwmk uses b->oldpos, which usually at the BOL for a b with
-		 * no corresponding bw.
+		bwrm(bw);  /* This includes --bw->b->count (or orphit(bw) if bw->b == errbuf). */
+		w->object = (void *)(bw = bwmk_takeref(w, b_incref(b), 0));
+		/* bwmk() has set the new bw->cursor to b->oldcur (and similarly
+		 * for bw->top), which is correct if b was just unrphaned
+		 * (by b_incref(b)), but it's at the BOF if there was already a
+		 * W containing b. In the latter case, we copy a better position
+		 * from a better W.
 		 */
-		w->object = (void *) (bw = bwmk(w, b, 0));
-		if (!b->orphan) {
-			++b->count;
-		} else {
-			b->orphan = 0;
-		}
 		if (ow != NULL && ow != w) {
 			BW *obw = (BW*)ow->object;
-			/* pset code copied from uduptw */
+			/* pset() code was copied from uduptw(). */
 			pset(bw->top, obw->top);
 			pset(bw->cursor, obw->cursor);
 			bw->cursor->xcol = obw->cursor->xcol;
 		}
 		wredraw(w);
-		bw->object = object; /* TODO(pts): Move this above wredraw(w)? */
+		bw->object = object;
 	}
 
-	if (do_macros && use_berror == -1 && bw->o.mnew) {
+	if (do_macros && use_berror == BERROR_NEW_FILE && bw->o.mnew) {
 		exmacro(bw->o.mnew,1);
 	}
 	if (do_macros && use_berror == 0 && bw->o.mold) {
@@ -744,16 +739,16 @@ static int doedit2(BW *bw, int if_loaded_policy, unsigned char *filename,
   B *b;
   int ret;
   if (notify) *notify = 1;
-  /* bfind_reload() and bfind() set berror, and always use a non-NULL b */
+  /* bfind_incref() and bload_incref() set berror, and always use a non-NULL b */
   if (if_loaded_policy == IF_LOADED_RELOAD_ADJUST) {
-    b = bfind_reload(filename);
+    b = bload_incref(filename);
     /* Make the buffer holding the original file read-only to prevent
      * accidental editing and saving (instead of editing the old, dirty
      * buffer).
      */
     b->rdonly = b->o.readonly = 1;
   } else {
-    b = bfind(filename);
+    b = bfind_incref(filename);
   }
   vsrm(filename);
   if (!berror && if_loaded_policy != IF_LOADED_REUSE_KEEP && bw->b != b) {
@@ -762,7 +757,7 @@ static int doedit2(BW *bw, int if_loaded_policy, unsigned char *filename,
     enqueb(B, link, bw->b, b);
   }
   ret = replace_b_in_bw(bw, b, /*do_orphan:*/orphan, /*do_restore:*/1, /*use_berror:*/berror, /*do_macros:*/1);
-  brm(b);  /* Undo b->count increase done by bfind() or bfind_reload() above. */
+  brm(b);  /* Undo b->count increase done by bfind_incref() or bload_incref() above. */
   return ret;
 }
 
@@ -838,13 +833,16 @@ int uswitch(BW *bw)
 
 int doscratch(BW *bw, unsigned char *s, void *obj, int *notify)
 {
+	int ret;
 	B *b;
 	if (notify) {
 		*notify = 1;
 	}
-	b = bfind_scratch(s);
+	b = bfind_scratch_incref(s);
 	vsrm(s);
-	return replace_b_in_bw(bw, b, /*do_orphan:*/orphan, /*do_restore:*/1, /*use_berror:*/berror, /*do_macros:*/1);
+	ret = replace_b_in_bw(bw, b, /*do_orphan:*/orphan, /*do_restore:*/1, /*use_berror:*/berror, /*do_macros:*/1);
+	brm(b);
+	return ret;
 }
 
 int uscratch(BW *bw)
@@ -860,13 +858,16 @@ int uscratch(BW *bw)
 
 static int dorepl(BW *bw, unsigned char *s, void *obj, int *notify)
 {
+	int ret;
 	B *b;
 	if (notify) {
 		*notify = 1;
 	}
-	b = bfind(s);
+	b = bfind_incref(s);
 	vsrm(s);
-	return replace_b_in_bw(bw, b, /*do_orphan:*/1, /*do_restore:*/1, /*use_berror:*/berror, /*do_macros:*/1);
+	ret = replace_b_in_bw(bw, b, /*do_orphan:*/1, /*do_restore:*/1, /*use_berror:*/berror, /*do_macros:*/1);
+	brm(b);
+	return ret;
 }
 
 /* Switch to next buffer in the current window */
@@ -878,7 +879,7 @@ int unbuf(BW *bw)
 	if (b == bw->b) {
 		b = bnext();
 	}
-	return get_buffer_in_window(bw,b);
+	return replace_b_in_bw(bw, b, /*do_orphan:*/1, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0);
 }
 
 int upbuf(BW *bw)
@@ -888,7 +889,7 @@ int upbuf(BW *bw)
 	if (b == bw->b) {
 		b = bprev();
 	}
-	return get_buffer_in_window(bw, b);
+	return replace_b_in_bw(bw, b, /*do_orphan:*/1, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0);
 }
 
 int unbufu(BW *bw)
@@ -908,7 +909,7 @@ int unbufu(BW *bw)
 	/* bnext() moves bufs.link.prev forward (past bufs), and returns it */
 	b0 = b = bnext();
 	while (b == bw->b ||
-	       (!b->orphan && find_onscreen_window(b, t)) ||
+	       find_onscreen_window(b, t) ||
 	       (b->scratch && b->name[0] == '*')  /* Don't switch to `* Grep Log *', `* Build Log *' or other errbufs */
 	      ) {
 	  b = bnext();
@@ -918,34 +919,34 @@ int unbufu(BW *bw)
 	return replace_b_in_bw(bw, b, /*do_orphan:*/orphan, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0);
 }
 
-int upbufu(BW *bw)
-{
-	Screen *t = bw->parent->t;
-	B *b0, *b;
-
-	/* !! TODO(pts): ^K q in errbuf should kill the window (and refit the
-	 *    rest), not the buffer.
-	 */
-	if (bw->b == errbuf && count_onscreen_main_windows(t) != 1)
-		return -1;  /* Beep. */
+B* bprev_get(B *b, Screen *t) {
+	B *b0, *b1;
 
 	/* Move bufs just after bw->b, so bprev() will return the previous
 	 * buffer with respect to the current buffer (bw->b)
 	 */
 	deque(B, link, &bufs);
-	enquef(B, link, bw->b, &bufs);
-	
-	/* bprev() moves bufs.link.next backward (past bufs), and returns it */
-	b0 = b = bprev();
-	while (b == bw->b ||
-	       (!b->orphan && find_onscreen_window(b, t)) ||
-	       (b->scratch && b->name[0] == '*')  /* Don't switch to `* Grep Log *', `* Build Log *' or other errbufs */
-	      ) {
-	  b = bprev();
-	  if (b == b0) return 0;
-	} 
+	enquef(B, link, b, &bufs);
 
-	return replace_b_in_bw(bw, b, /*do_orphan:*/orphan, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0);
+	/* bprev() moves bufs.link.next backward (past bufs), and returns it */
+	b0 = b1 = bprev();
+	while (b1 == b ||
+	       find_onscreen_window(b1, t) ||
+	       (b1->scratch && b1->name[0] == '*')  /* Don't switch to `* Grep Log *', `* Build Log *' or other errbufs */
+	      ) {
+	  b1 = bprev();
+	  if (b1 == b0) return NULL;
+	} 
+	return b1 == b ? NULL : b1;
+}
+
+int upbufu(BW *bw)
+{
+	B *b;
+	if (bw->b == errbuf && count_onscreen_main_windows(bw->parent->t) != 1)
+		return -1;  /* Beep. */
+	b = bprev_get(bw->b, bw->parent->t);
+	return b == NULL ? 0 : replace_b_in_bw(bw, b, /*do_orphan:*/orphan, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0);
 }
 
 int uinsf(BW *bw)
@@ -1068,14 +1069,14 @@ static int dolose(BW *bw, int c, void *object, int *notify)
 					   any prompt windows? */
 
 					bwrm(bw);
-					w->object = (void *) (bw = bwmk(w, new_b, 0));
+					w->object = (void *) (bw = bwmk_takeref(w, new_b, 0));
 					wredraw(w);
 					bw->object = object;
 				} else {
 					BW *bw = (BW *)w->object;
 					object = bw->object;
 					bwrm(bw);
-					w->object = (void *) (bw = bwmk(w, bfind(USTR ""), 0));
+					w->object = (void *) (bw = bwmk_takeref(w, bfind_incref(USTR ""), 0));
 					wredraw(w);
 					bw->object = object;
 					if (bw->o.mnew)
@@ -1106,41 +1107,6 @@ int ulose(BW *bw)
 }
 
 /* Buffer list */
-
-#ifdef junk
-
-static int dobuf(MENU *m, int x, unsigned char **s)
-{
-	unsigned char *name;
-	BW *bw = m->parent->win->object;
-	int *notify = m->parent->notify;
-
-	m->parent->notify = 0;
-	name = vsdup(s[x]);
-	wabort(m->parent);
-	return dorepl(bw, name, NULL, notify);
-}
-
-static int abrtb(MENU *m, int x, unsigned char **s)
-{
-	varm(s);
-	return -1;
-}
-
-int ubufed(BW *bw)
-{
-	unsigned char **s = getbufs();
-
-	vasort(av(s));
-	if (mkmenu(bw->parent, bw->parent, s, dobuf, abrtb, NULL, 0, s, NULL))
-		return 0;
-	else {
-		varm(s);
-		return -1;
-	}
-}
-
-#endif
 
 unsigned char **sbufs = NULL;	/* Array of command names */
 
@@ -1286,7 +1252,7 @@ static int doreload(BW *bw, int c, void *object, int *notify)
 	if (c != YES_CODE && !yncheck(yes_key, c)) {
 		return -1;
 	}
-	n = bload(bw->b->name);
+	n = bload_incref(bw->b->name);
 	if (berror) {
 		brm(n);
 		msgnw(bw->parent, joe_gettext(msgs[-berror]));
@@ -1321,7 +1287,7 @@ int ureload_all(BW *bw)
 	B *b;
 	for (b = bufs.link.next; b != &bufs; b = b->link.next)
 		if (!b->changed && plain_file(b)) {
-			B *n = bload(b->name);
+			B *n = bload_incref(b->name);
 			if (berror) {
 				msgnw(bw->parent, joe_gettext(msgs[-berror]));
 				er = -1;

@@ -108,7 +108,7 @@ void promote_history(B *hist, long line)
 	r = pdup(q, USTR "promote_history");
 	pnextl(r);
 	t = pdup(hist->eof, USTR "promote_history");
-	binsb(t, bcpy(q, r));
+	binsb_decref(t, bcpy(q, r));
 	bdel(q, r);
 	prm(q);
 	prm(r);
@@ -245,7 +245,7 @@ BW *wmkpw(W *w, unsigned char *prompt, B **history, int (*func) (), unsigned cha
 		return NULL;
 	}
 	wfit(new->t);
-	new->object = (void *) (bw = bwmk(new, bmk(NULL), 1));
+	new->object = (void *) (bw = bwmk_takeref(new, bmk(NULL), 1));
 	bw->b->o.charmap = map;
 	bw->object = (void *) (pw = (PW *) joe_malloc(sizeof(PW)));
 	pw->abrt = abrt;
@@ -259,7 +259,7 @@ BW *wmkpw(W *w, unsigned char *prompt, B **history, int (*func) (), unsigned cha
 	if (history) {
 		setup_history(history);
 		pw->hist = *history;
-		binsb(bw->cursor, bcpy(pw->hist->bof, pw->hist->eof));
+		binsb_decref(bw->cursor, bcpy(pw->hist->bof, pw->hist->eof));
 		bw->b->changed = 0;
 		p_goto_eof(bw->cursor);
 		p_goto_eof(bw->top);

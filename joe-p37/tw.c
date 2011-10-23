@@ -464,8 +464,6 @@ static void disptw(BW *bw, int flg)
 	}
 }
 
-/* Split current window */
-
 static void iztw(TW *tw, int y)
 {
 	tw->stalin = NULL;
@@ -476,6 +474,7 @@ static void iztw(TW *tw, int y)
 	tw->prev_b = 0;
 }
 
+/* Split current window */
 int usplitw(BW *bw)
 {
 	W *w = bw->parent;
@@ -491,7 +490,7 @@ int usplitw(BW *bw)
 	if (!new)
 		return -1;
 	wfit(new->t);
-	new->object = (void *) (newbw = bwmk(new, bw->b, 0));
+	new->object = (void *) (newbw = bwmk_takeref(new, bw->b, 0));
 	++bw->b->count;
 	newbw->offset = bw->offset;
 	newbw->object = (void *) (newtw = (TW *) joe_malloc(sizeof(TW)));
@@ -503,6 +502,10 @@ int usplitw(BW *bw)
 	return 0;
 }
 
+/* Duplicate current window, move the original to the end of the window list,
+ * and hide it. Show the duplicate in place of the original, with the same
+ * height.
+ */
 int uduptw(BW *bw)
 {
 	W *w = bw->parent;
@@ -517,7 +520,7 @@ int uduptw(BW *bw)
 		return -1;
 	if (demotegroup(w))
 		new->t->topwin = new;
-	new->object = (void *) (newbw = bwmk(new, bw->b, 0));
+	new->object = (void *) (newbw = bwmk_takeref(new, bw->b, 0));
 	++bw->b->count;
 	newbw->offset = bw->offset;
 	newbw->object = (void *) (newtw = (TW *) joe_malloc(sizeof(TW)));
@@ -526,7 +529,11 @@ int uduptw(BW *bw)
 	pset(newbw->cursor, bw->cursor);
 	newbw->cursor->xcol = bw->cursor->xcol;
 	new->t->curwin = new;
+	if (w->y != -1)
+		fatal(USTR "uduptw.a");
 	wfit(w->t);
+	if (w->y != -1)
+		fatal(USTR "uduptw.b");
 	return 0;
 }
 
@@ -556,27 +563,65 @@ WATOM watomtw = {
 	TYPETW
 };
 
+/* Find a window containing b, which is not w.
+ *
+ * If there is no such window, return NULL.
+ */
+static W* find_another_window(B *b, W *w2) {
+	W *w = w2->link.prev;
+	if (w == w2 || b->orphan)
+		return NULL;
+	while (1) {
+		if ((w->watom->what&TYPETW) &&
+		    ((BW*)w->object)->b == b) return w;
+		w = w->link.prev;
+		if (w == w2) return NULL;
+	}
+}
+
 int abortit(BW *bw)
 {
 	W *w;
 	TW *tw;
-	B *b;
 	if (bw->parent->watom != &watomtw)
 		return wabort(bw->parent);
 	if (bw->b->pid && bw->b->count==1)
 		return ukillpid(bw);
 	w = bw->parent;
-	tw = (TW *) bw->object;
+	tw = (TW*)bw->object;
+
+	if (w == w->t->curwin->main &&
+	    count_onscreen_main_windows(w->t) == 1) {  /* Almost always true. */
+		B *bother = bprev_get(bw->b, w->t);
+		if (bother != NULL) {
+			void *object = bw->object;  /* TW */
+			W *wold =w;
+			bwrm(bw);
+			w->object = (void *) (bw = bwmk_takeref(w, b_incref(bother), 0));
+			wredraw(w);
+			bw->object = object; /* TODO(pts): Move this above wredraw(w)? */
+			w = find_another_window(bother, w);
+			if (w == NULL)
+				return 0;
+			/* Continue delelting that other window. */
+			bw = (BW*)w->object;
+			tw = (TW*)bw->object;
+			w->orgwin = NULL;  /* Just to make sure wabort(w) won't change w->t->curwin. */
+			wold->msgb = NULL;  /* Cancel genexmsg() in naborttw(). */
+		}
+	}
+
 	/* If only one main window on the screen (maybe invisible): */
 	if (countmain(w->t) == 1) {
-		/* Replace it with an orphaned buffer if there are any */
+		B *b;
 		if ((b = borphan()) != NULL) {
+			/* Replace it with an orphaned buffer if there are any */
 			void *object = bw->object;
 			/* FIXME: Shouldn't we wabort() and wcreate here to kill
 			   any prompt windows? */
 
 			bwrm(bw);
-			w->object = (void *) (bw = bwmk(w, b, 0));
+			w->object = (void *) (bw = bwmk_takeref(w, b, 0));
 			wredraw(bw->parent);
 			bw->object = object;
 			return 0;
@@ -627,13 +672,10 @@ int uabort(BW *bw, int k)
 		W *w0 = bw->parent;
 		W *w = w0->link.prev;
 		while (w != w0 && w->y == -1) w = w->link.prev;
-		if (w != w0) { /* There is another visible window (w). */
+		if (w != w0) {  /* There is another visible window (w). */
 			if (bw->b->count == 1)
 				orphit(bw);
 			w0->orgwin = w;  /* Instruct wabort() called by abortit() to make w0's height add to w's height, and w the next current window (w->t->curwin = w). */
-			/* !! TODO(pts): Keep the bw around somewhere, for remembering bw->cursor etc.
-			 *    Maybe just hide the window instead of removing it (see wshowone).
-			 */
 			return abortit(bw);
 		}
 	}
@@ -689,7 +731,7 @@ int uabortbuf(BW *bw)
 		void *object = bw->object;
 
 		bwrm(bw);
-		w->object = (void *) (bw = bwmk(w, b, 0));
+		w->object = (void *) (bw = bwmk_takeref(w, b, 0));
 		wredraw(bw->parent);
 		bw->object = object;
 		return 0;
@@ -765,7 +807,7 @@ void setline(B *b, long int line)
 
 /* Create a text window.  It becomes the last window on the screen */
 
-BW *wmktw(Screen *t, B *b)
+BW *wmktw_takeref(Screen *t, B *b)
 {
 	W *w;
 	BW *bw;
@@ -773,7 +815,7 @@ BW *wmktw(Screen *t, B *b)
 
 	w = wcreate(t, &watomtw, NULL, NULL, NULL, t->h, NULL, NULL);
 	wfit(w->t);
-	w->object = (void *) (bw = bwmk(w, b, 0));
+	w->object = (void *) (bw = bwmk_takeref(w, b, 0));
 	bw->object = (void *) (tw = (TW *) joe_malloc(sizeof(TW)));
 	iztw(tw, w->y);
 	return bw;

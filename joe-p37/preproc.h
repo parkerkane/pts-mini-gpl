@@ -248,8 +248,8 @@ unsigned char *preprocess_expr(unsigned char *ba, unsigned char **pp,
  * Modifies line buffer containing a joe configuration line in place.
  * 
  * @param buf,buflen contain one joerc file line (terminated with "\n\0").
- *   will be modified in place
- * @param tmp.tmplen temporary buffer (of size buflen)
+ *   Will be modified in place.
+ * @param tmp,tmplen temporary buffer
  * @return 0 on OK, 1 on err
  */
 int preprocess_rc_line(unsigned char *buf, unsigned buflen,
@@ -262,17 +262,18 @@ int preprocess_rc_line(unsigned char *buf, unsigned buflen,
   if (bufend!=buf && bufend[-1]!='\n' && bufend!=buf+buflen-1) {
     *bufend++='\n'; *bufend='\0';
   }
-  /* vvv Return if line not ending with '\n' */
+  /* vvv Return if line still not ending with '\n' */
   if (bufend==buf || bufend[-1]!='\n') return 0;
   /* vvv Return if line doesn't start with preprocessor character '$' */
   if (buf[0]!='$') return 0;
-  /* !! error: line too long */
-  /* !! dynamically alloc */
+  /* TODO(pts) dynamically allocatte tmp (possibly also buf) */
   p=tmp; pend=p+tmplen;
   ba=buf;
   while (1) {
     while (*ba!='\0' && (ba[0]!='$' || ba[1]!='(')) {
-      if (p!=pend) *p++=*ba;
+      if (p == pend)
+        goto done;
+      *p++=*ba;
       ba++;
     }
     if (*ba=='\0') break;
@@ -281,7 +282,9 @@ int preprocess_rc_line(unsigned char *buf, unsigned buflen,
     if (*ba==')' || *ba=='\0') { /* $() -> empty string */
       ba++;
     } else if (ba[1]==')') { /* $(C) -> C */
-      if (p!=pend) *p++=ba[0];
+      if (p == pend)
+        goto done;
+      *p++=ba[0];
       ba+=2;
     } else {
       s=(unsigned char*)"";
@@ -303,14 +306,19 @@ int preprocess_rc_line(unsigned char *buf, unsigned buflen,
         do {
           ba=preprocess_expr(ba,&p,pend,&err,fname,fline);
         } while (ba[-1]==',');
+        if (p == pend)
+          goto done;
       }          
       while (*s!='\0') { /* append s to results */
-        if (p!=pend) *p++=*s;
+        if (p == pend)
+          goto done;
+        *p++=*s;
         s++;
       }
     }
   } /* WHILE */
-  if (p==pend) { /* buffer overlow */
+ done:
+  if (p == pend) {
     fprintf(stderr,(char *)joe_gettext(_("\n%s %d: Preprocessed line too long, truncated")), fname, fline);
     p[-1]='\0'; err=1;
   }

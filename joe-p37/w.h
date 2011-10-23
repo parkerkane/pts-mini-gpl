@@ -116,9 +116,12 @@ int demotegroup PARAMS((W *w));
  */
 W *lastw PARAMS((Screen *t));
 
-/* Determine number of main windows
+/* Determine number of main windows.
  */
 int countmain PARAMS((Screen *t));
+/* Determine visible number of main windows.
+ */
+int count_onscreen_main_windows PARAMS((Screen *t));
 
 /* void wfit(Screen *t);
  *

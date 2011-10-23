@@ -147,10 +147,9 @@ B *bmk PARAMS((B *prop));
 void brm PARAMS((B *b));
 void brmall();
 
-B *bfind PARAMS((unsigned char *s));
-B *bfind_scratch PARAMS((unsigned char *s));
+B *bfind_incref PARAMS((unsigned char *s));
+B *bfind_scratch_incref PARAMS((unsigned char *s));
 B *bcheck_loaded PARAMS((unsigned char *s));
-B *bfind_reload PARAMS((unsigned char *s));
 
 P *pdup PARAMS((P *p, unsigned char *tr));
 P *pdupown PARAMS((P *p, P **o, unsigned char *tr));
@@ -222,8 +221,11 @@ void pcoalesce PARAMS((P *p));
 
 void bdel PARAMS((P *from, P *to));
 
-/* insert buffer 'b' into another at 'p' */
-P *binsb PARAMS((P *p, B *b));
+/* Bumps the reference count of a B, and unorphans it. Returns the argument.*/
+B* b_incref PARAMS((B *b));
+
+/* insert buffer 'b' into another at 'p', call brm(b). */
+P *binsb_decref PARAMS((P *p, B *b));
 /* insert a block 'blk' of size 'amnt' into buffer at 'p' */
 P *binsm PARAMS((P *p, unsigned char *blk, int amnt)); 
 
@@ -236,7 +238,7 @@ P *binsbyte PARAMS((P *p, unsigned char c));
 /* insert zero term. string 's' into buffer at 'p' */
 P *binss PARAMS((P *p, unsigned char *s));
 
-/* B *bload(char *s);
+/* B *bload_incref(char *s);
  * Load a file into a new buffer
  *
  * Returns with errno set to 0 for success,
@@ -245,9 +247,9 @@ P *binss PARAMS((P *p, unsigned char *s));
  * -3 for seek error
  * -4 for open error
  */
-B *bload PARAMS((unsigned char *s));
-B *bread PARAMS((int fi, long int max));
-B *bfind PARAMS((unsigned char *s));
+B *bload_incref PARAMS((unsigned char *s));
+B *bread_incref PARAMS((int fi, long int max));
+B *bfind_incref PARAMS((unsigned char *s));
 B *borphan PARAMS((void));
 
 /* Save 'size' bytes beginning at 'p' into file with name in 's' */
@@ -290,7 +292,8 @@ B *bnext PARAMS((void));
 B *bafter PARAMS((B *b));
 B *bprev PARAMS((void));
 
-extern int berror;	/* bload error status code (use msgs[-berror] to get message) */
+#define BERROR_NEW_FILE -1  /* berror value corresponding to to msgs[1]: "New File". */
+extern int berror;	/* bload_incref() error status code (use msgs[-berror] to get message) */
 
 unsigned char **getbufs PARAMS((void));
 

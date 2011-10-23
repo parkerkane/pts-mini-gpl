@@ -114,7 +114,7 @@ B *pextrect(P *org, long int height, long int right)
 		pset(q, p);
 		pcolwse(q, right);
 		p_goto_eof(z);
-		binsb(z, bcpy(p, q));
+		binsb_decref(z, bcpy(p, q));
 		p_goto_eof(z);
 		binsc(z, '\n');
 		pnextl(p);
@@ -208,7 +208,7 @@ void pinsrect(P *cur, B *tmp, long int width, int usetabs)
 			pcol(p, cur->xcol);
 			if (piscol(p) < cur->xcol)
 				pfill(p, cur->xcol, usetabs);
-			binsb(p, bcpy(r, q));
+			binsb_decref(p, bcpy(r, q));
 			pfwrd(p, q->byte - r->byte);
 			if (piscol(p) < cur->xcol + width)
 				pfill(p, cur->xcol + width, usetabs);
@@ -488,7 +488,7 @@ int ublkmove(BW *bw)
 		} else if (bw->cursor->b != markk->b || bw->cursor->byte > markk->byte || bw->cursor->byte < markb->byte) {
 			long size = markk->byte - markb->byte;
 
-			binsb(bw->cursor, bcpy(markb, markk));
+			binsb_decref(bw->cursor, bcpy(markb, markk));
 			bdel(markb, markk);
 			if (lightoff)
 				unmark(bw);
@@ -506,13 +506,13 @@ int ublkmove(BW *bw)
 }
 
 static int load_and_insert(BW *bw, unsigned char* filename) {
-	B *tmp = bload(filename);
+	B *tmp = bload_incref(filename);
 	if (berror) {
 		msgnw(bw->parent, joe_gettext(msgs[-berror]));
 		brm(tmp);
 		return -1;
 	} else {
-		binsb(bw->cursor, tmp);  /* also does a brm(tmp) */
+		binsb_decref(bw->cursor, tmp);
 		bw->cursor->xcol = piscol(bw->cursor);
 		return 0;
 	}
@@ -531,7 +531,7 @@ static int copy_from_pts_xclip(BW *bw) {
 	umarkk(bw);
 
 	/* Detect whether pts-xclip is available and it can connect to $DISPLAY */
-	tmp = bload((unsigned char*)"!pts-xclip -detectout");
+	tmp = bload_incref((unsigned char*)"!pts-xclip -detectout");
 	if (berror || tmp->eof->byte != 14) { brm(tmp); return -1; }
 	brmem(tmp->bof, tmpbuf, 14);
 	if (0 != zncmp(tmpbuf, (unsigned char*)"pts-xclip OK.\n", 14)) {
@@ -596,7 +596,7 @@ int ublkcpy(BW *bw)
 				prm(q);
 			}
 
-			binsb(bw->cursor, tmp);
+			binsb_decref(bw->cursor, tmp);
 			if (lightoff)
 				unmark(bw);
 			else {
@@ -910,7 +910,7 @@ int doinsf(BW *bw, unsigned char *s, void *object, int *notify)
 					       markk->line - markb->line + 1,
 					       markk->xcol);
 
-			tmp = bload(s);
+			tmp = bload_incref(s);
 			vsrm(s);
 			if (berror) {
 				msgnw(bw->parent, joe_gettext(msgs[-berror]));
@@ -1017,7 +1017,7 @@ static int dofilt(BW *bw, unsigned char *s, void *object, int *notify)
 					       markk->line - markb->line + 1,
 					       markk->xcol);
 
-			tmp = bread(fr[0], MAXLONG);
+			tmp = bread_incref(fr[0], MAXLONG);
 			if (piscol(tmp->eof))
 				height = tmp->eof->line + 1;
 			else
@@ -1044,7 +1044,7 @@ static int dofilt(BW *bw, unsigned char *s, void *object, int *notify)
 			if (!flg)
 				prgetc(p);
 			bdel(markb, p);
-			binsb(p, bread(fr[0], MAXLONG));
+			binsb_decref(p, bread_incref(fr[0], MAXLONG));
 			if (!flg) {
 				pset(p,markk);
 				prgetc(p);

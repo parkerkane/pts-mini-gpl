@@ -290,7 +290,7 @@ int utag(BW *bw)
 
 	pbw = wmkpw(bw->parent, joe_gettext(_("Tag search: ")), &taghist, dotag, NULL, NULL, tag_cmplt, NULL, NULL, locale_map, 0);
 	if (pbw && joe_isalnum_(bw->b->o.charmap,brch(bw->cursor))) {
-		binsb(pbw->cursor, get_word_at_p(bw->cursor));
+		binsb_decref(pbw->cursor, get_word_at_p(bw->cursor));
 		pset(pbw->cursor, pbw->b->eof);
 		pbw->cursor->xcol = piscol(pbw->cursor);
 	}

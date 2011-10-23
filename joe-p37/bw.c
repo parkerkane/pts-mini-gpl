@@ -840,9 +840,12 @@ void bwresz(BW *bw, int wi, int he)
 	bw->h = he;
 }
 
-BW *bwmk(W *window, B *b, int prompt)
+BW *bwmk_takeref(W *window, B *b, int prompt)
 {
 	BW *bw = (BW *) joe_malloc(sizeof(BW));
+
+	if (b->count <= 0 || b->orphan)
+		fatal(USTR "takeref");
 
 	bw->parent = window;
 	bw->b = b;
@@ -853,15 +856,18 @@ BW *bwmk(W *window, B *b, int prompt)
 		bw->y = window->y + 1;
 		bw->h = window->h - 1;
 	}
-	if (b->oldcur) {
+	if (b->oldtop) {
 		bw->top = b->oldtop;
 		b->oldtop = NULL;
 		bw->top->owner = NULL;
+	} else {
+		bw->top = pdup(b->bof, USTR "bwmk");
+	}
+	if (b->oldcur) {
 		bw->cursor = b->oldcur;
 		b->oldcur = NULL;
 		bw->cursor->owner = NULL;
 	} else {
-		bw->top = pdup(b->bof, USTR "bwmk");
 		bw->cursor = pdup(b->bof, USTR "bwmk");
 	}
 	bw->t = window->t;
@@ -881,8 +887,6 @@ BW *bwmk(W *window, B *b, int prompt)
 	}
 	bw->top->xcol = 0;
 	bw->cursor->xcol = 0;
-	bw->linums = 0;
-	bw->top_changed = 1;
 	bw->linums = 0;
 	bw->db = 0;
 	return bw;
@@ -987,10 +991,10 @@ void set_file_pos_all(Screen *t)
 void bwrm(BW *bw)
 {
 	if (bw->b == errbuf && bw->b->count == 1) {
-		/* Do not lose message buffer */
+		/* Do not lose the message buffer (errbuf). */
 		orphit(bw);
 	}
-	set_file_pos(bw->b->name,bw->cursor->line);
+	set_file_pos(bw->b->name, bw->cursor->line);
 	prm(bw->top);
 	prm(bw->cursor);
 	brm(bw->b);
@@ -1063,7 +1067,7 @@ int ucrawll(BW *bw)
 
 void orphit(BW *bw)
 {
-	++bw->b->count; /* Assumes bwrm() is about to be called. */
+	++bw->b->count; /* Assumes bwrm(bw) is about to be called. */
 	bw->b->orphan = 1;
 	pdupown(bw->cursor, &bw->b->oldcur, USTR "orphit");
 	pdupown(bw->top, &bw->b->oldtop, USTR "orphit");

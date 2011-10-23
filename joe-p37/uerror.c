@@ -50,8 +50,8 @@ B *beafter(B *b)
 		e = e->link.next;
 	berror = 0;
 	if (e != &errors) {
-		B *b = bfind(e->file);
-		/* bfind bumps refcount, so we have to unbump it */
+		B *b = bfind_incref(e->file);
+		/* bfind_incref() bumps refcount, so we have to unbump it. */
 		if (b->count == 1)
 			b->orphan = 1; /* Oops */
 		else

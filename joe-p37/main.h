@@ -17,6 +17,7 @@ void nungetc2 PARAMS((int c1, int c2));
 void dofollows PARAMS((void));
 int edloop PARAMS((int flg));
 void edupd PARAMS((int flg));
+void fatal PARAMS((const unsigned char *msg));
 
 extern volatile int dostaupd;	/* Force status line update */
 extern int nonotice; /* Set to prevent copyright notice */

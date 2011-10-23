@@ -34,8 +34,14 @@ int okrepl PARAMS((BW *bw));
 int doswitch PARAMS((BW *bw, unsigned char *s, void *obj, int *notify));
 int uquerysave PARAMS((BW *bw));
 int ukilljoe PARAMS((BW *bw));
-#define get_buffer_in_window(bw, b) replace_b_in_bw(bw, b, /*do_orphan:*/1, /*do_restore:*/0, /*use_berror:*/0, /*do_macros:*/0)
 int replace_b_in_bw PARAMS((BW *bw, B *b, int do_orphan, int do_restore, int use_berror, int do_macros));
+
+/* Return the previous buffer which is not in an onscreen window, or NULL if
+ * there is no such buffer. Never returns the original b.
+ *
+ * Runs bprev() as side effect, so it relinks part of the buffer list.
+ */
+B* bprev_get PARAMS((B *b, Screen *t));
 
 extern B *filehist; /* History of file names */
 

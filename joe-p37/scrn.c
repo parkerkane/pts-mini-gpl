@@ -315,6 +315,12 @@ void outatr(struct charmap *map,SCRN *t,int *scrn,int *attrf,int xx,int yy,int c
 			t->x += wid;
 			if (do_insert) {
 				cpos(t, xx, yy);
+				/* We might insert to a middle of a wide char
+				 * here. Both xterm and TERM=linux allow this,
+				 * and they split or scramble the multibyte
+				 * character, without scrambling other parts of
+				 * the screen. Good.
+				 */
 				ninsert1(t);
 				--scrn;
 				--attrf;

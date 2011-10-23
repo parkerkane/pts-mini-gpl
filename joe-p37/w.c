@@ -23,6 +23,21 @@ int countmain(Screen *t)
 	return nmain;
 }
 
+int count_onscreen_main_windows(Screen *t) {
+	int nmain = 1;
+	W *m = t->curwin->main;
+	W *q;
+	/* TODO(pts): Similar implementation, but no ->main in unextvw(). */
+	for (q = t->curwin->link.next; q != t->curwin; q = q->link.next)
+		if (q->main != m) {
+			if ((q->watom->what&TYPETW) && q->y >= 0)
+				++nmain;
+			m = q->main;
+		}
+	return nmain;
+}
+
+
 /* Redraw a window */
 
 void wredraw(W *w)
@@ -228,15 +243,14 @@ W *watpos(Screen *t,int x,int y)
 	return 0;
 }
 
+static int doabort(W *w, int *ret);
+
 /* Fit as many windows on the screen as is possible beginning with the window
  * at topwin.  Give any extra space which couldn't be used to fit in another
- * window to the last text window on the screen.  This function guarentees
+ * window to the last text window on the screen.  This function guarantees
  * to fit on the window with the cursor in it (moves topwin to next group
  * of windows until window with cursor fits on screen).
  */
-
-static int doabort(W *w, int *ret);
-
 void wfit(Screen *t)
 {
 	int y;			/* Where next window goes */
@@ -835,6 +849,7 @@ int uretyp(BASE *bw)
 	return 0;
 }
 
+/* See also find_onscreen_window() etc. in ufile.c . */
 static W *find_window(Screen *t, B *b)
 {
 	W *w = t->topwin;
@@ -855,7 +870,7 @@ int umwind(BW *bw)
 		return -1;
 	}
 
-	/* Find message window */
+	/* Find message window. */
 	msgw = find_window(bw->parent->t, errbuf);
 
 	if (msgw) {  /* Already visible => hide all other windows. */
