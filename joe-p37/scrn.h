@@ -165,7 +165,7 @@ extern int skiptop;
  */
 SCRN *nopen PARAMS((CAP *cap));
 
-/* int nresize(SCRN *t, int wid, int hei, int is_from_ttgtsz);
+/* int nresize(SCRN *t, int wid, int hei, char is_from_ttgtsz);
  *
  * Change size of screen.  For example, call this when you find out that
  * the Xterm changed size.
@@ -179,7 +179,7 @@ SCRN *nopen PARAMS((CAP *cap));
  *
  * Returns 0 if screen size remained the same as it was, 1 otherwise.
  */
-int nresize PARAMS((SCRN *t, int wid, int hei, int is_from_ttgtsz));
+int nresize PARAMS((SCRN *t, int wid, int hei, char is_from_ttgtsz));
 
 /* void nredraw(SCRN *t);
  *

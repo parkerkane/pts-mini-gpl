@@ -522,7 +522,8 @@ static void out(unsigned char *t, unsigned char c)
 SCRN *nopen(CAP *cap)
 {
 	SCRN *t = (SCRN *) joe_malloc(sizeof(SCRN));
-	int wid, hei, is_from_ttgtsz;
+	int wid, hei;
+	char is_from_ttgtsz;
 
 	ttopen();
 
@@ -813,10 +814,13 @@ SCRN *nopen(CAP *cap)
 	return t;
 }
 
-int nresize(SCRN *t, int wid, int hei, int is_from_ttgtsz)
+int nresize(SCRN *t, int wid, int hei, char is_from_ttgtsz)
 {
+	char has_gtli_changed = 0;
 	if (is_from_ttgtsz) {
 		if (wid > 0 && hei > 0) {
+			if (t->gtli != hei && t->gtli > 0)
+				has_gtli_changed = 1;
 			t->gtli = hei;
 			t->gtco = wid;
 		} else {
@@ -832,7 +836,7 @@ int nresize(SCRN *t, int wid, int hei, int is_from_ttgtsz)
 	if (wid < 8)
 		wid = 8;
 	t->wrap_mode = 0;
-	if (t->gtco > 8) {
+	if (t->gtco >= 8) {
 		if (wid >= t->gtco) {
 			wid = t->gtco;
 			/* We need t->ce in wrap_mode for eraeol(). */
@@ -856,9 +860,19 @@ int nresize(SCRN *t, int wid, int hei, int is_from_ttgtsz)
 		 */
 		--wid;
 	}
-	
-	if (t->li == hei && t->co == wid)
+	if (t->gtli >= 4 && hei > t->gtli) {
+		hei = t->gtli;
+	}
+
+	if (t->li == hei && t->co == wid) {
+		/* If the number of lines has changed since the last ttgtsz,
+		 * the terminal (e.g. xterm) might have scrolled the current
+		 * screen contents, so we'd better redraw.
+		 */
+		if (has_gtli_changed && t->scrn != NULL)
+			nredraw(t);
 		return 0;
+	}
 	t->li = hei;
 	t->co = wid;
 	if (t->sary)
@@ -1657,9 +1671,9 @@ void nredraw(SCRN *t)
 		} else if (t->cd) {
 			cpos(t, 0, 0);
 			texec(t->cap, t->cd, 1, 0, 0, 0, 0);
-			msetI(t->scrn, ' ', t->li * t->co);
-			msetI(t->attr, BG_COLOR(bg_text), t->li * t->co); 
 		}
+		msetI(t->scrn, ' ', t->li * t->co);
+		msetI(t->attr, BG_COLOR(bg_text), t->li * t->co); 
 	}
 }
 

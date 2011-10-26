@@ -52,15 +52,13 @@ void edupd(int flg)
 		staupd = 1;
 		dostaupd = 0;
 	}
-	if (env_columns <= 0 || env_lines <= 0) {
-		ttgtsz(&wid, &hei);  /* This is run about once per second. */
-		if (nresize(maint->t, wid, hei, 1)) {
-			sresize(maint);
+	ttgtsz(&wid, &hei);  /* This is run about once per second. */
+	if (nresize(maint->t, wid, hei, 1)) {
+		sresize(maint);
 #ifdef MOUSE_GPM
-			gpm_mx = maint->w;
-			gpm_my = maint->h;
+		gpm_mx = maint->w;
+		gpm_my = maint->h;
 #endif
-		}
 	}
 	dofollows();
 	ttflsh();
