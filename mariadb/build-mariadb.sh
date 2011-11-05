@@ -3,18 +3,23 @@
 
 set -ex
 
-TARGZ=mariadb-5.2.1-beta-Linux-i686.tar.gz
-TARGZ_URL=http://ftp.rediris.es/mirror/MariaDB/mariadb-5.2.1-beta/kvm-bintar-hardy-x86/${TARGZ}
+#TARGZ=mariadb-5.2.1-beta-Linux-i686.tar.gz
+#TARGZ_URL=http://ftp.rediris.es/mirror/MariaDB/mariadb-5.2.1-beta/kvm-bintar-hardy-x86/${TARGZ}
+TARGZ=mariadb-5.2.9-Linux-i686.tar.gz
+TARGZ_URL=http://downloads.askmonty.org/f/mariadb-5.2.9/kvm-bintar-hardy-x86/mariadb-5.2.9-Linux-i686.tar.gz/from/http:/mirror.switch.ch/mirror/mariadb
 
-wget -O /tmp/${TARGZ} ${TARGZ_URL}
+if ! test -f /tmp/${TARGZ}; then
+  wget -O /tmp/${TARGZ}.download ${TARGZ_URL}
+  mv -f /tmp/${TARGZ}.download /tmp/${TARGZ}
+fi
 rm -rf /tmp/mariadb-preinst
 mkdir -p /tmp/mariadb-preinst
 cd /tmp/mariadb-preinst
 tar xzvf /tmp/${TARGZ} ${TARGZ%.tar.*}/\
-  {bin/mysqld{,_safe},bin/my_print_defaults,scripts/mysql_install_db,\
-  share/mysql/english/errmsg.sys,share/fill_help_tables.sql,\
-  share/mysql_fix_privilege_tables.sql,share/mysql_system_tables.sql,\
-  share/mysql_system_tables_data.sql,share/mysql_test_data_timezone.sql}
+{bin/mysqld{,_safe},bin/my_print_defaults,scripts/mysql_install_db,\
+share/mysql/english/errmsg.sys,share/fill_help_tables.sql,\
+share/mysql_fix_privilege_tables.sql,share/mysql_system_tables.sql,\
+share/mysql_system_tables_data.sql,share/mysql_test_data_timezone.sql}
 cd ${TARGZ%.tar.*}
 strip -s bin/mysqld
 ./scripts/mysql_install_db --basedir="$PWD" --force --datadir="$PWD"/data
