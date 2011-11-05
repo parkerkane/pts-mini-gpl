@@ -7,6 +7,8 @@ set -ex
 #TARGZ_URL=http://ftp.rediris.es/mirror/MariaDB/mariadb-5.2.1-beta/kvm-bintar-hardy-x86/${TARGZ}
 TARGZ=mariadb-5.2.9-Linux-i686.tar.gz
 TARGZ_URL=http://downloads.askmonty.org/f/mariadb-5.2.9/kvm-bintar-hardy-x86/mariadb-5.2.9-Linux-i686.tar.gz/from/http:/mirror.switch.ch/mirror/mariadb
+MARIADB_INIT_PL="${0%/*}/mariadb_init.pl"
+test -f "$MARIADB_INIT_PL"
 
 if ! test -f /tmp/${TARGZ}; then
   wget -O /tmp/${TARGZ}.download ${TARGZ_URL}
@@ -27,7 +29,9 @@ rm -rf scripts
 rm -f share/*.sql
 cd ..
 mv ${TARGZ%.tar.*} mariadb-compact
+cp "$MARIADB_INIT_PL" mariadb-compact/mariadb_init.pl
+chmod 755 mariadb-compact/mariadb_init.pl
 tar cjvf /tmp/mariadb-compact.tbz2 mariadb-compact
-rm -rf /tmp/${TARGZ}
+#rm -f /tmp/${TARGZ}
 rm -rf /tmp/mariadb-preinst
 ls -l /tmp/mariadb-compact.tbz2 
