@@ -16,6 +16,8 @@ KBD *mkkbd(KMAP *kmap)
 	kbd->topmap = kmap;
 	kbd->curmap = kmap;
 	kbd->x = 0;
+	kbd->extmouse_phase = 0;
+	kbd->extmouse_args[0] = kbd->extmouse_args[1] = kbd->extmouse_args[2] = 0;
 	return kbd;
 }
 
@@ -37,17 +39,55 @@ void *dokey(KBD *kbd, int n)
 		n += 256;
 
 	/* If we're starting from scratch, clear the keymap sequence buffer */
-	if (kbd->curmap == kbd->topmap)
+	if (kbd->curmap == kbd->topmap) {
 		kbd->x = 0;
+		kbd->extmouse_phase = 0;
+		kbd->extmouse_args[0] = kbd->extmouse_args[1] = kbd->extmouse_args[2] = 0;
+	}
 
-	if (kbd->curmap->keys[n].k == 1) {	/* A prefix key was found */
-		kbd->seq[kbd->x++] = n;
-		kbd->curmap = kbd->curmap->keys[n].value.submap;
-	} else {		/* A complete key sequence was entered or an unbound key was found */
-		bind = kbd->curmap->keys[n].value.bind;
+	/* Finite state machine to parse urxvt extended mouse coordinates, e.g.
+	 * ^[[32;1;2M is a click on (1,2).
+	 * kbd->extmouse_phase is 0 when idle, 1-5 after receiving '^[', '[',
+	 * ';', ';', 'M' respectively.
+	 */
+	if (n == '\033') {
+		kbd->extmouse_phase = 1;
+	} else if (kbd->extmouse_phase == 1) {
+		if (n == '[') kbd->extmouse_phase = 2;
+		else kbd->extmouse_phase = 0;
+	} else if (kbd->extmouse_phase >= 2) {
+		if (n >= '0' && n <= '9') {
+			kbd->extmouse_args[kbd->extmouse_phase-2] *= 10;
+			kbd->extmouse_args[kbd->extmouse_phase-2] += n - '0';
+		}
+		else if (n == (kbd->extmouse_phase < 4 ? ';' : 'M')) kbd->extmouse_phase++;
+		else kbd->extmouse_phase = 0;
+	}
+
+	if (kbd->curmap) {
+		/* The kbd lookup table still has a chance to match. */
+		if (kbd->curmap->keys[n].k == 1) {	/* A prefix key was found */
+			kbd->seq[kbd->x++] = n;
+			kbd->curmap = kbd->curmap->keys[n].value.submap;
+		} else {		/* A complete key sequence was entered or an unbound key was found */
+			bind = kbd->curmap->keys[n].value.bind;
 /*  kbd->seq[kbd->x++]=n; */
-		kbd->x = 0;
-		kbd->curmap = kbd->topmap;
+			kbd->x = 0;
+			/* If unbound, but there's still a chance to match an extended mouse coord,
+			   signal by setting kbd_curmap to NULL. */
+			kbd->curmap = (bind == NULL && kbd->extmouse_phase) ? NULL : kbd->topmap;
+		}
+	}
+	if (!kbd->curmap) {
+		/* No match in kbd lookup table, but maybe it's an extended mouse coord. */
+		if (kbd->extmouse_phase == 5) {
+			/* No match in kbd lookup table, but got extended mouse coords. */
+			kbd->curmap = kbd->topmap;
+			mouse_event(kbd->extmouse_args[0]-32, kbd->extmouse_args[1], kbd->extmouse_args[2]);
+		} else if (kbd->extmouse_phase == 0) {
+			/* Extended mouse coords broke after we gave up on the kbd lookup table. */
+			kbd->curmap = kbd->topmap;
+		}
 	}
 	return bind;
 }

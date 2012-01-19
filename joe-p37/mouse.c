@@ -63,18 +63,28 @@ int mcoord(int x)
 
 int uxtmouse(BW *bw)
 {
-	Cb = ttgetc()-32;
-	if (Cb < 0)
-		return -1;
-	Cx = ttgetc();
-	if (Cx < 32)
-		return -1;
-	Cy = ttgetc();
-	if (Cy < 32)
-		return -1;
+	int b, x, y;
 
-	Cx = mcoord(Cx);
-	Cy = mcoord(Cy);
+	b = ttgetc()-32;
+	if (b < 0)
+		return -1;
+	x = ttgetc();
+	if (x < 32)
+		return -1;
+	y = ttgetc();
+	if (y < 32)
+		return -1;
+	x = mcoord(x);
+	y = mcoord(y);
+
+	return mouse_event(b, x, y);
+}
+
+int mouse_event(int b, int x, int y)
+{
+	if (b < 0 || x < 1 || y < 1)
+		return -1;
+	Cb = b, Cx = x, Cy = y;
 
 	if ((Cb & 0x41) == 0x40) {
 		fake_key(KEY_MWUP);
@@ -683,6 +693,7 @@ void mouseopen()
 #ifdef MOUSE_XTERM
 	if (usexmouse) {
 		ttputs(USTR "\33[?1002h");
+		ttputs(USTR "\33[?1015h");
 		if (joexterm)
 			ttputs(USTR "\33[?2007h");
 		ttflsh();
@@ -696,6 +707,7 @@ void mouseclose()
 	if (usexmouse) {
 		if (joexterm)
 			ttputs(USTR "\33[?2007l");
+		ttputs(USTR "\33[?1015l");
 		ttputs(USTR "\33[?1002l");
 		ttflsh();
 	}

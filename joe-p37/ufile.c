@@ -692,11 +692,7 @@ int replace_b_in_bw(BW *bw, B *b, int do_orphan, int do_restore, int use_berror,
 		 * from a better W.
 		 */
 		if (ow != NULL && ow != w) {
-			BW *obw = (BW*)ow->object;
-			/* pset() code was copied from uduptw(). */
-			pset(bw->top, obw->top);
-			pset(bw->cursor, obw->cursor);
-			bw->cursor->xcol = obw->cursor->xcol;
+			bwposcpy(bw, (BW*)ow->object);
 		}
 		wredraw(w);
 		bw->object = object;

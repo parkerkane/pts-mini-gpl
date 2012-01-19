@@ -1072,3 +1072,10 @@ void orphit(BW *bw)
 	pdupown(bw->cursor, &bw->b->oldcur, USTR "orphit");
 	pdupown(bw->top, &bw->b->oldtop, USTR "orphit");
 }
+
+void bwposcpy(BW *bw, BW *bwfrom)
+{
+	pset(bw->top, bwfrom->top);
+	pset(bw->cursor, bwfrom->cursor);
+	bw->cursor->xcol = bwfrom->cursor->xcol;
+}

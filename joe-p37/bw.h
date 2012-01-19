@@ -40,6 +40,7 @@ BW *bwmk_takeref PARAMS((W *window, B *b, int prompt));
 void bwmove PARAMS((BW *bw, int x, int y));
 void bwresz PARAMS((BW *bw, int wi, int he));
 void bwrm PARAMS((BW *bw));
+void bwposcpy PARAMS((BW *bw, BW *bwfrom));
 int ustat PARAMS((BW *bw));
 int ucrawll PARAMS((BW *bw));
 int ucrawlr PARAMS((BW *bw));

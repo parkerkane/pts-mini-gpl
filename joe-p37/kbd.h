@@ -26,8 +26,10 @@ struct kmap {
 struct kbd {
 	KMAP	*curmap;	/* Current keymap */
 	KMAP	*topmap;	/* Top-level keymap */
-	int	seq[16];	/* Current sequence of keys */
+	int	seq[32];	/* Current sequence of keys */
 	int	x;		/* What we're up to */
+	int	extmouse_phase;		/* Step of parsing extended mouse coordinate */
+	int	extmouse_args[3];	/* Button and coordinates */
 };
 
 /* KMAP *mkkmap(void);

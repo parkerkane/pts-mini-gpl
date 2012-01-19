@@ -495,9 +495,7 @@ int usplitw(BW *bw)
 	newbw->offset = bw->offset;
 	newbw->object = (void *) (newtw = (TW *) joe_malloc(sizeof(TW)));
 	iztw(newtw, new->y);
-	pset(newbw->top, bw->top);
-	pset(newbw->cursor, bw->cursor);
-	newbw->cursor->xcol = bw->cursor->xcol;
+	bwposcpy(newbw, bw);
 	new->t->curwin = new;
 	return 0;
 }
@@ -525,9 +523,7 @@ int uduptw(BW *bw)
 	newbw->offset = bw->offset;
 	newbw->object = (void *) (newtw = (TW *) joe_malloc(sizeof(TW)));
 	iztw(newtw, new->y);
-	pset(newbw->top, bw->top);
-	pset(newbw->cursor, bw->cursor);
-	newbw->cursor->xcol = bw->cursor->xcol;
+	bwposcpy(newbw, bw);
 	new->t->curwin = new;
 	if (w->y != -1)
 		fatal(USTR "uduptw.a");
@@ -595,15 +591,16 @@ int abortit(BW *bw)
 		B *bother = bprev_get(bw->b, w->t);
 		if (bother != NULL) {
 			void *object = bw->object;  /* TW */
-			W *wold =w;
+			W *wold = w;
 			bwrm(bw);
 			w->object = (void *) (bw = bwmk_takeref(w, b_incref(bother), 0));
 			wredraw(w);
-			bw->object = object; /* TODO(pts): Move this above wredraw(w)? */
+			bw->object = object;  /* TODO(pts): Move this above wredraw(w)? */
 			w = find_another_window(bother, w);
 			if (w == NULL)
 				return 0;
-			/* Continue delelting that other window. */
+			bwposcpy(bw, (BW*)w->object);
+			/* Continue deleting that other window. */
 			bw = (BW*)w->object;
 			tw = (TW*)bw->object;
 			w->orgwin = NULL;  /* Just to make sure wabort(w) won't change w->t->curwin. */
