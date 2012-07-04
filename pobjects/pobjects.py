@@ -206,12 +206,13 @@ def abstract(function, full_method_name):
   def AbstractFunction(self, *args, **kwargs):
     if not isinstance(self, type):
       self = type(self)
-    # TODO(pts): Extract class name from self.
     raise AbstractMethodError(
         'abstract method %s.%s.%s called' %
         (self.__module__, self.__name__, function.func_name))
 
   AbstractFunction._is_abstract = True
+
+  # TODO(pts): Fail at runtime when instantiating an abstract class.
 
   return AbstractFunction
 
