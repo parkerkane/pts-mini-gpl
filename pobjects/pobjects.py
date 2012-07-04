@@ -1,22 +1,30 @@
 #! /usr/bin/python2.4
 #
 # pobject.py: @override, @final etc. decorator support in Python2.4
-# by pts@fazekas.hu at Thu Mar 26 14:32:12 CET 2009
+# by pts@fazekas.hu at Wed Jul  4 10:09:45 CEST 2012
 #
-# pobjects works in python2.4 and python2.5.
+# pobjects works in Python 2.4, 2.5, 2.6 and 2.7.
 #
 # TODO(pts): Add decorators to properties / descriptors.
+# !! Get rid of _UnwrapFunction -- for classmethod?
+# !! Add tests for @classmethod etc.
 
 import re
 import sys
 import types
 
+
 class AbstractMethodError(Exception):
   """Raised when an abstract method is called."""
 
 
-class BadMethod(Exception):
-  """Raised when a bad method definition is encountered."""
+class BadClass(Exception):
+  """Raised when a class cannot be created."""
+
+
+class BadInstantiation(Exception):
+  """Raised when a class cannot be instantiated."""
+
 
 class BadDecoration(Exception):
   """Raised when a decorator cannot be applied."""
@@ -53,7 +61,7 @@ def _Self(value):
 
 
 def _UnwrapFunction(fwrap):
-  """Unwarp function from function, classmethod or staticmethod.
+  """Unwrap function from function, classmethod or staticmethod.
   
   Args:
     fwrap: A function, classmethod or staticmethod.
@@ -63,6 +71,7 @@ def _UnwrapFunction(fwrap):
     yield something equivalent to fwrap. The value (None, None) is returned
     if fwrap is is not of the right type.
   """
+  # !! add a unit test
   if isinstance(fwrap, types.FunctionType):
     return fwrap, _Self
   elif isinstance(fwrap, classmethod):
@@ -71,6 +80,25 @@ def _UnwrapFunction(fwrap):
     return fwrap.__get__(0), staticmethod
   else:
     return None, None
+
+
+def _UnwrapFunctionOrMethod(fwrap):
+  """Unwrap function from function, method, classmethod or staticmethod.
+  
+  Args:
+    fwrap: A function, method, classmethod or staticmethod.
+  Returns:
+    function or None.
+  """
+  # !! add a unit test
+  if isinstance(fwrap, (classmethod, staticmethod)):
+    fwrap = fwrap.__get__(0)
+  if isinstance(fwrap, types.MethodType):
+    fwrap = fwrap.im_func
+  if isinstance(fwrap, types.FunctionType):
+    return fwrap
+  else:
+    return None
 
 
 class _OldStyleClass:
@@ -91,7 +119,8 @@ class _MetaClassProxy(object):
         isinstance(self.orig_metaclass, type) and
         issubclass(self.orig_metaclass, _PObjectMeta)):
       return self.orig_metaclass(class_name, bases, dict_obj)
-    if 'final' not in decorator_names and 'finalim' not in decorator_names:
+    if ('final' not in decorator_names and 'finalim' not in decorator_names and
+        'abstract' not in decorator_names):
       CheckDecorators(class_name, bases, dict_obj)
       if not [1 for base in bases
               if not isinstance(base, type(_OldStyleClass))]:
@@ -107,13 +136,14 @@ class _MetaClassProxy(object):
         'decorator @%s in file %r, line %s cannot be applied to %s' %
         (decorator['decorator_name'], decorator['file_name'],
         decorator['line_number'], decorator['full_method_name'])
-        for decorator in self.decorators])
+        for decorator in self.decorators]).capitalize()
     full_class_name = '%s.%s' % (dict_obj['__module__'], class_name)
     if (not isinstance(self.orig_metaclass, type) or
         not issubclass(_PObjectMeta, self.orig_metaclass)):
+      # TODO(pts): Lift this restriction.
       raise BadDecoration(
-          '%s; because the specified %s.__metaclass__ (%s) is not a superclass '
-          'of _PObjectMeta' %
+          '%s; because the specified %s.__metaclass__ (%s) is not a subclass '
+          'of _PObjectMeta.' %
          (error_prefix, full_class_name, self.orig_metaclass))
     # This for loop is to give a better error message than:
     # TypeError: Error when calling the metaclass bases:: metaclass
@@ -129,12 +159,12 @@ class _MetaClassProxy(object):
         # Counterexamples: base == float; base == str; regexp match.
         # Examples: Exception.
         raise BadDecoration(
-            '%s; because superclass %s is not a pure class' %
+            '%s; because base class %s is not a pure class.' %
             (error_prefix, base))
-      elif not issubclass(_PObjectMeta, type(base)) or 1:
+      elif not issubclass(_PObjectMeta, type(base)):
         raise BadDecoration(
-            '%s; because superclass %s has metaclass %s, '
-            'which conflicts with _PObjectMeta' %
+            '%s; because base class %s has metaclass %s, '
+            'which conflicts with _PObjectMeta.' %
             (error_prefix, base, type(base)))
     if old_base_count == len(bases):
       # Avoid `TypeError: Error when calling the metaclass bases;
@@ -151,13 +181,13 @@ def pobject_decorator(decorator):
     function, wrapper = _UnwrapFunction(fwrap)
     if not isinstance(function, types.FunctionType):
       raise BadDecoration(
-          'decorator @%s cannot be applied to non-function %r' %
+          'Decorator @%s cannot be applied to non-function %r.' %
           (decorator.func_name, function))
     f = sys._getframe().f_back
     if '__module__' not in f.f_locals:
       raise BadDecoration(
           'decorator @%s cannot be applied to function %s in %s, '
-          'because the latter is not a class definition' %
+          'because the latter is not a class definition.' %
           (decorator.func_name, function.func_name, f.f_code.co_name))
     module_name = f.f_locals['__module__']
     full_method_name = '%s.%s.%s' % (
@@ -185,11 +215,11 @@ def pobject_decorator(decorator):
 
 
 def _GenerateBothAbstractAndFinal(full_method_name):
-  return 'decorators @abstract and @final cannot be both applied to %s' % (
+  return 'Decorators @abstract and @final cannot be both applied to %s.' % (
       full_method_name)
 
 def _GenerateBothAbstractAndFinalim(full_method_name):
-  return 'decorators @abstract and @finalim cannot be both applied to %s' % (
+  return 'Decorators @abstract and @finalim cannot be both applied to %s.' % (
       full_method_name)
 
 @pobject_decorator
@@ -207,7 +237,7 @@ def abstract(function, full_method_name):
     if not isinstance(self, type):
       self = type(self)
     raise AbstractMethodError(
-        'abstract method %s.%s.%s called' %
+        'Abstract method %s.%s.%s called.' %
         (self.__module__, self.__name__, function.func_name))
 
   AbstractFunction._is_abstract = True
@@ -251,72 +281,136 @@ def override(function, full_method_name):
   return function
 
 
-def _DumpSuperClassList(bases):
+def _DumpBaseClassList(bases):
   if len(bases) == 1:
-    return 'superclass %s.%s' % (bases[0].__module__, bases[0].__name__)
+    return 'base class %s.%s' % (bases[0].__module__, bases[0].__name__)
   else:
-    return 'superclasses ' + ', '.join(
+    return 'base classes ' + ', '.join(
         ['%s.%s' % (base.__module__, base.__name__) for base in bases])
 
 
+def _DumpMethodList(method_names):
+  if len(method_names) > 1:
+    return 'methods ' + ', '.join(sorted(method_names))
+  else:
+    return 'method ' + iter(method_names).next()
+
+
+def _NotAbstractInit(self):
+  pass
+
+
+def SetupAbstractInit(dict_obj, abstract_method_fullnames):
+  abstract_method_fullnames = sorted(abstract_method_fullnames)
+  def AbstractInit(cls, *args, **kwargs):  # !! outer function?
+    if (len(abstract_method_fullnames) == 1 and
+        abstract_method_fullnames[0].endswith('.__init__')):
+      raise BadInstantiation('Cannot instantiate abstract class %s.%s' %
+                             (cls.__module__, cls.__name__))
+    raise BadInstantiation(
+        'Cannot instantiate abstract class %s.%s because '
+        'it has @abstract %s.' %
+        (cls.__module__, cls.__name__,
+         _DumpMethodList(abstract_method_fullnames)))
+  dict_obj['__init__'] = classmethod(AbstractInit)
+
+
 def CheckDecorators(class_name, bases, dict_obj):
-  """Raise BadMethod if the new class is inconsistent with some decorators."""
+  """Raise BadClass if the new class is inconsistent with some decorators.
+  
+  May make modifications to dict_obj. 
+  """
+  problems = []
   module = dict_obj['__module__']
+  # Mapes method names to '<basemodule>.<baseclass>.<method>'s.
+  abstract_methods = {}
+  for base in bases:
+    for name in sorted(dir(base)):
+      function = _UnwrapFunctionOrMethod(getattr(base, name))
+      if getattr(function, '_is_abstract', None):
+        abstract_methods.setdefault(name, []).append(function._full_name)
+  has_abstract_method_in_bases = bool(abstract_methods)
+  abstract_methods.pop('__init__', None)
   for name in sorted(dict_obj):
     function, _ = _UnwrapFunction(dict_obj[name])
     if isinstance(function, types.FunctionType):
-      #print (class_name, name)
+      if (getattr(function, '_is_abstract', None) or
+          getattr(function, '_is_final', None) or
+          getattr(function, '_is_finalim', None)):
+        function._full_name = '%s.%s.%s' % (module, class_name, name)
+      if getattr(function, '_is_abstract', None):
+        abstract_methods.setdefault(name, []).append(function._full_name)
+      else:
+        abstract_methods.pop(name, None)
       if getattr(function, '_is_nosuper', None):
         bases_with_name = [base for base in bases if hasattr(base, name)]
         if bases_with_name:
           # Unfortunately, we don't get the method definition line in the
           # traceback. TODO(pts): Somehow forge it.
-          raise BadMethod(
-              '@nosuper method %s.%s.%s defined in %s' %
-              (module, class_name, name,
-               _DumpSuperClassList(bases_with_name)))
+          problems.append('@nosuper method %s defined in %s' %
+                          (name, _DumpBaseClassList(bases_with_name)))
       if getattr(function, '_is_override', None):
         bases_with_name = [base for base in bases if hasattr(base, name)]
         if not bases_with_name:
-          # TODO(pts): report line numbers (elsewhere etc.)
-          raise BadMethod(
-              '@override method %s.%s.%s not defined in %s' %
-              (module, class_name, name, _DumpSuperClassList(bases)))
+          # TODO(pts): Report line numbers (elsewhere etc.).
+          problems.append(
+              '@override method %s not defined in %s' %
+              (name, _DumpBaseClassList(bases)))
       # We don't need any special casing for getattr(..., '_is_final', None) below
       # if getattr(base, name) is an ``instancemethod'' created from a
       # classmethod or a function. This is because an instancemathod
       # automirorrs all attributes of its im_func.
-      bases_with_final = [
-          base for base in bases if hasattr(base, name) and
-          getattr(getattr(base, name), '_is_final', None)]
+      bases_with_final = []
+      for base in bases:
+        function = _UnwrapFunctionOrMethod(getattr(base, name, None))
+        if getattr(function, '_is_final', None):
+          bases_with_final.append(function._full_name)
       if bases_with_final:
-        raise BadMethod(
-            'method %s.%s.%s overrides @final method in %s' %
-              (module, class_name, name,
-               _DumpSuperClassList(bases_with_final)))
+        problems.append(
+            'method %s overrides @final %s' %
+            (name, _DumpMethodList(bases_with_final)))
       if function is dict_obj[name]:  # function is instance method
         bases_with_finalim = [
-            base for base in bases if hasattr(base, name) and
-            getattr(getattr(base, name), '_is_finalim', None)]
+            base for base in bases if getattr(_UnwrapFunctionOrMethod(getattr(
+                base, name, None)), '_is_finalim', None)]
         if bases_with_finalim:
-          raise BadMethod(
-              'instance method %s.%s.%s overrides @finalim method in %s' %
-                (module, class_name, name,
-                 _DumpSuperClassList(bases_with_finalim)))
-
+          # !! Use base ._full_name like in @final.
+          problems.append(
+              'instance method %s overrides @finalim method in %s' %
+              (name, _DumpBaseClassList(bases_with_finalim)))
+  if abstract_methods:
+    abstract_method_fullnames = set()
+    for fullnames in abstract_methods.itervalues():
+      abstract_method_fullnames.update(fullnames)
+    SetupAbstractInit(dict_obj, abstract_method_fullnames)
+    if '__init__' in abstract_methods:
+      init, _ = _UnwrapFunction(dict_obj['__init__'])
+      init._is_abstract = True
+      init._full_name = '%s.%s.__init__' % (module, class_name)
+  elif has_abstract_method_in_bases:
+    dict_obj.setdefault('__init__', _NotAbstractInit)
+  if problems:
+    msg = ['Cannot create ']
+    if abstract_methods:
+      msg.append('abstract class ')
+    else:
+      msg.append('class ')
+    msg.append('%s.%s because ' % (module, class_name))
+    msg.append('; '.join(problems))
+    msg.append('.')
+    raise BadClass(''.join(msg))
+    
 
 class _PObjectMeta(type):
   def __new__(cls, class_name, bases, dict_obj):
     # cls is _PObjectMeta here.
-    #print ('NewClass', cls, class_name, bases, dict_obj)
+    # Call CheckDecorators before type.__new__ first, because
+    # CheckDecorators may modify dict_obj.
     CheckDecorators(class_name, bases, dict_obj)
     return type.__new__(cls, class_name, bases, dict_obj)
 
-class pobject(object):
-  __metaclass__ = _PObjectMeta  # be type(pobjects) == _PObjectMeta, not type  
 
 # Updates for all modules.
-__builtins__['pobject'] = pobject
 __builtins__['final'] = final
 __builtins__['finalim'] = finalim
 __builtins__['nosuper'] = nosuper

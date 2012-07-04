@@ -1034,6 +1034,7 @@ LandscapeRectangle.CheckLandscape(6, 7)  # AssertionError</pre>
   builtins = type(__import__('sys'))('restricted_builtins')
   builtins.__dict__.update(f.func_globals['__builtins__'].__dict__)
   builtins.__dict__.pop('__import__', None)
+  # TODO; Copy the docstring etc.
   return type(f)(f.func_code, {'__builtins__': builtins},
                  f.func_name, f.func_defaults, f.func_closure)
 
