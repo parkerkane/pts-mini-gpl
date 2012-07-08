@@ -5,7 +5,10 @@
 
 import unittest
 
+#import pobjects_builtins
 import pobjects
+from pobjects import *
+
 
 class PobjectsTest(unittest.TestCase):
   def assertRaisesWithLiteralMatch(self, expected_exception,
@@ -38,7 +41,7 @@ class PobjectsTest(unittest.TestCase):
     if isinstance(code, str):
       code = code.rstrip()
     def Do():
-      globals_dict = {'__name__': 'testmod'}
+      globals_dict = {'__name__': 'testmod', 'final': final}
       exec code in globals_dict
     self.assertRaisesWithLiteralMatch(
         expected_exception, expected_exception_message, Do)

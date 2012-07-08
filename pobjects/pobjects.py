@@ -5,13 +5,23 @@
 #
 # pobjects works in Python 2.4, 2.5, 2.6 and 2.7.
 #
+# Do `import pobjects_builtins' to do a `from pobjects import *' for all
+# modules.
+#
 # TODO(pts): Add decorators to properties / descriptors.
 # !! Get rid of _UnwrapFunction -- for classmethod?
 # !! Add tests for @classmethod etc.
 
+"""Module implementing method restrictions (@abstract, @final) etc.
+
+Usage: from pobjects import *
+"""
+
 import re
 import sys
 import types
+
+__all__ = ('final', 'finalim', 'nosuper', 'abstract', 'override')
 
 
 class AbstractMethodError(Exception):
@@ -443,11 +453,3 @@ class _PObjectMeta(type):
       # This creates a circular reference, but that's unavoidable.
       kls.__init__.func_globals['_for_super_class'] = kls
     return kls
-
-
-# Updates for all modules.
-__builtins__['final'] = final
-__builtins__['finalim'] = finalim
-__builtins__['nosuper'] = nosuper
-__builtins__['abstract'] = abstract
-__builtins__['override'] = override
