@@ -218,9 +218,26 @@ def _GenerateBothAbstractAndFinal(full_method_name):
   return 'Decorators @abstract and @final cannot be both applied to %s.' % (
       full_method_name)
 
+
 def _GenerateBothAbstractAndFinalim(full_method_name):
   return 'Decorators @abstract and @finalim cannot be both applied to %s.' % (
       full_method_name)
+
+
+def _AbstractFunction(self, *args, **kwargs):
+  # _func_name and _full_method_name are
+  # inserted to our func_globals by the @abstract decorator.
+  if not isinstance(self, type):
+    self = type(self)
+  this_method_name = '%s.%s.%s' % (
+      self.__module__, self.__name__, _func_name)
+  if this_method_name == _full_method_name:
+    raise AbstractMethodError(
+        'Abstract method %s called.' % this_method_name)
+  raise AbstractMethodError(
+      'Abstract method %s called as %s' %
+      (_full_method_name, this_method_name))
+
 
 @pobject_decorator
 def abstract(function, full_method_name):
@@ -233,18 +250,21 @@ def abstract(function, full_method_name):
   if getattr(function, '_is_finalim', None):
     raise BadDecoration(_GenerateBothAbstractAndFinalim(full_method_name))
 
-  def AbstractFunction(self, *args, **kwargs):
-    if not isinstance(self, type):
-      self = type(self)
-    raise AbstractMethodError(
-        'Abstract method %s.%s.%s called.' %
-        (self.__module__, self.__name__, function.func_name))
+  if function.func_name == '__init__':
+    function._is_abstract = True
+    return function
 
-  AbstractFunction._is_abstract = True
-
-  # TODO(pts): Fail at runtime when instantiating an abstract class.
-
-  return AbstractFunction
+  # TODO(pts0: Copy __doc__ etc.
+  f = type(_AbstractFunction)(
+      _AbstractFunction.func_code,
+      {'__builtins__': _AbstractFunction.func_globals['__builtins__'],
+       'AbstractMethodError': AbstractMethodError,
+       '_full_method_name': full_method_name,
+       '_func_name': function.func_name},
+      _AbstractFunction.func_defaults,
+      _AbstractFunction.func_closure)
+  f._is_abstract = True
+  return f
 
 
 @pobject_decorator
@@ -296,23 +316,23 @@ def _DumpMethodList(method_names):
     return 'method ' + iter(method_names).next()
 
 
-def _NotAbstractInit(self):
-  pass
-
-
-def SetupAbstractInit(dict_obj, abstract_method_fullnames):
-  abstract_method_fullnames = sorted(abstract_method_fullnames)
-  def AbstractInit(cls, *args, **kwargs):  # !! outer function?
-    if (len(abstract_method_fullnames) == 1 and
-        abstract_method_fullnames[0].endswith('.__init__')):
-      raise BadInstantiation('Cannot instantiate abstract class %s.%s' %
-                             (cls.__module__, cls.__name__))
-    raise BadInstantiation(
-        'Cannot instantiate abstract class %s.%s because '
-        'it has @abstract %s.' %
-        (cls.__module__, cls.__name__,
-         _DumpMethodList(abstract_method_fullnames)))
-  dict_obj['__init__'] = classmethod(AbstractInit)
+def _AbstractInit(self, *args, **kwargs):
+  # _abstract_method_fullnames, _for_super_class, _has_orig_init, _orig_init
+  # in our func_globals was set up by _PObjectMeta.
+  if _for_super_class is not type(self):
+    # TODO(pts): Avoid this runtime overhead. (Is it possible?)
+    if _has_orig_init:
+      return _orig_init(self, *args, **kwargs)
+    return super(_for_super_class, self).__init__(*args, **kwargs)
+  if (len(_abstract_method_fullnames) == 1 and
+      iter(_abstract_method_fullnames).next().endswith('.__init__')):
+    raise BadInstantiation('Cannot instantiate abstract class %s.%s' %
+                           (type(self).__module__, type(self).__name__))
+  raise BadInstantiation(
+      'Cannot instantiate abstract class %s.%s because '
+      'it has @abstract %s' %
+      (type(self).__module__, type(self).__name__,
+       _DumpMethodList(_abstract_method_fullnames)))
 
 
 def CheckDecorators(class_name, bases, dict_obj):
@@ -322,7 +342,7 @@ def CheckDecorators(class_name, bases, dict_obj):
   """
   problems = []
   module = dict_obj['__module__']
-  # Mapes method names to '<basemodule>.<baseclass>.<method>'s.
+  # Maps method names to '<basemodule>.<baseclass>.<method>'s.
   abstract_methods = {}
   for base in bases:
     for name in sorted(dir(base)):
@@ -382,13 +402,23 @@ def CheckDecorators(class_name, bases, dict_obj):
     abstract_method_fullnames = set()
     for fullnames in abstract_methods.itervalues():
       abstract_method_fullnames.update(fullnames)
-    SetupAbstractInit(dict_obj, abstract_method_fullnames)
+    # TODO(pts): Copy __doc__ etc.
+    dict_obj['__init__'] = type(_AbstractInit)(
+        _AbstractInit.func_code,
+        {'__builtins__': _AbstractInit.func_globals['__builtins__'],
+         '_abstract_method_fullnames': abstract_method_fullnames,
+         '_DumpMethodList': _DumpMethodList,
+         'BadInstantiation': BadInstantiation,
+         '_orig_init': dict_obj.get('__init__'),
+         '_has_orig_init': '__init__' in dict_obj},
+        _AbstractInit.func_defaults,
+        _AbstractInit.func_closure)
     if '__init__' in abstract_methods:
       init, _ = _UnwrapFunction(dict_obj['__init__'])
       init._is_abstract = True
       init._full_name = '%s.%s.__init__' % (module, class_name)
-  elif has_abstract_method_in_bases:
-    dict_obj.setdefault('__init__', _NotAbstractInit)
+    # TODO(pts): can we optimize this for single inheritance, so that
+    # _AbstractInit is called for only a few classes?
   if problems:
     msg = ['Cannot create ']
     if abstract_methods:
@@ -407,7 +437,12 @@ class _PObjectMeta(type):
     # Call CheckDecorators before type.__new__ first, because
     # CheckDecorators may modify dict_obj.
     CheckDecorators(class_name, bases, dict_obj)
-    return type.__new__(cls, class_name, bases, dict_obj)
+    kls = type.__new__(cls, class_name, bases, dict_obj)
+    if _AbstractInit.func_code is getattr(
+        kls.__dict__.get('__init__'), 'func_code', None):
+      # This creates a circular reference, but that's unavoidable.
+      kls.__init__.func_globals['_for_super_class'] = kls
+    return kls
 
 
 # Updates for all modules.

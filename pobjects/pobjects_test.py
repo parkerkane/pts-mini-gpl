@@ -30,6 +30,8 @@ class PobjectsTest(unittest.TestCase):
                    'Exception message does not match.\nExpected: %r\n'
                    'Actual: %r' % (expected_exception_message,
                                    actual_exception_message))
+    else:
+      self.fail(expected_exception.__name__ + ' not raised')
 
   def assertCompileError(self, expected_exception, expected_exception_message,
                          code):
@@ -127,26 +129,29 @@ class PobjectsTest(unittest.TestCase):
     self.assertRaisesWithLiteralMatch(
         pobjects.BadInstantiation,
         'Cannot instantiate abstract class __main__.Bar because it has '
-        '@abstract method __main__.Foo.eat.', Bar)
+        '@abstract method __main__.Foo.eat', Bar)
     self.assertRaisesWithLiteralMatch(
         pobjects.BadInstantiation,
         'Cannot instantiate abstract class __main__.Foo because it has '
-        '@abstract method __main__.Foo.eat.', Foo)
+        '@abstract method __main__.Foo.eat', Foo)
 
     class Foo(object):
-      def __init__(self, x, y): assert 0, 'never Foo'
-      answer = 42
+      def __init__(self, x, y): self.answer = x * y
+      answer = 41
       @abstract
       def eat(self): pass
-    class Baz(Bar):
+    class Baz(Foo):
       def eat(self): print 'EATING'
-    self.assertEquals(42, Bar.answer)
-    self.assertEquals(Baz, type(Baz()))
+    self.assertEquals(41, Foo.answer)
+    baz = Baz(6, 7)
+    self.assertEquals(Baz, type(baz))
+    self.assertEquals(41, Baz.answer)
+    self.assertEquals(42, baz.answer)
     self.assertEquals(pobjects._PObjectMeta, type(Baz))
     self.assertRaisesWithLiteralMatch(
         pobjects.BadInstantiation,
         'Cannot instantiate abstract class __main__.Foo because it has '
-        '@abstract method __main__.Foo.eat.', Foo)
+        '@abstract method __main__.Foo.eat', Foo)
 
     class Foo(object):
       answer = 42
@@ -171,16 +176,16 @@ class PobjectsTest(unittest.TestCase):
     self.assertRaisesWithLiteralMatch(
         pobjects.BadInstantiation,
         'Cannot instantiate abstract class __main__.Bar because it has '
-        '@abstract method __main__.Foo.eat.', Bar)
+        '@abstract method __main__.Foo.eat', Bar)
     self.assertRaisesWithLiteralMatch(
         pobjects.BadInstantiation,
         'Cannot instantiate abstract class __main__.Foo because it has '
-        '@abstract method __main__.Foo.eat.', Foo)
+        '@abstract method __main__.Foo.eat', Foo)
 
     class Foo:
-      answer = 42
+      answer = 41
       @abstract
-      def __init__(self, x, y): assert 0, 'never Foo'
+      def __init__(self, x, y): self.answer = x * y
     class Bar1(Foo):
       @abstract
       def __init__(self, x, y): assert 0, 'never Bar1'
@@ -190,13 +195,13 @@ class PobjectsTest(unittest.TestCase):
     class Bar2(Foo):
       def __init__(self, x, y): self.answer = x * y * 10
     class Bar3(Foo):
-      pass
-    self.assertEquals(42, Foo.answer)
-    self.assertEquals(42, Bar1.answer)
-    self.assertEquals(42, Bar2.answer)
+      pass  # This cancels the abstractness of Foo.
+    self.assertEquals(41, Foo.answer)
+    self.assertEquals(41, Bar1.answer)
+    self.assertEquals(41, Bar2.answer)
     bar2 = Bar2(6, 7)
     self.assertEquals(420, bar2.answer)
-    bar3 = Bar3()
+    bar3 = Bar3(6, 7)
     self.assertEquals(42, bar3.answer)
     self.assertEquals(Bar2, type(bar2))
     self.assertEquals(pobjects._PObjectMeta, type(Bar2))
@@ -206,6 +211,51 @@ class PobjectsTest(unittest.TestCase):
     self.assertRaisesWithLiteralMatch(
         pobjects.BadInstantiation,
         'Cannot instantiate abstract class __main__.Foo', Foo)
+
+  def testAbstractMultipleInheritance(self):
+    class ParentOne(object):
+      @abstract
+      def foo(self): pass
+    class ParentTwo(object):
+      value = 41
+      def __init__(self): self.value = 42
+      def bar(self): return 'PARENTTWO.BAR'
+    class Child(ParentOne, ParentTwo):
+      def foo(self): return 'CHILD.FOO'
+    class Child2(ParentOne, ParentTwo):
+      def __init__(self):
+        self.c = 56
+        super(Child2, self).__init__()
+      def foo(self): return 'CHILD2.FOO'
+    child = Child()
+    self.assertEquals('PARENTTWO.BAR', child.bar())
+    self.assertEquals('CHILD.FOO', child.foo())
+    self.assertEquals(42, child.value)
+    child2 = Child2()
+    self.assertEquals('PARENTTWO.BAR', child2.bar())
+    self.assertEquals('CHILD2.FOO', child2.foo())
+    self.assertEquals(42, child2.value)
+    self.assertEquals(56, child2.c)
+
+  def testAbstractMultipleInheritanceOrigInit(self):
+    class ParentOne(object):
+      p1 = 31
+      def __init__(self):
+        super(ParentOne, self).__init__()  # This calls ParentTwo.__init__.
+        self.p1 = 32
+      @abstract
+      def foo(self): pass
+    class ParentTwo(object):
+      value = 41
+      def __init__(self): self.value = 42
+      def bar(self): return 'PARENTTWO.BAR'
+    class Child(ParentOne, ParentTwo):
+      def foo(self): return 'CHILD.FOO'
+    child = Child()
+    self.assertEquals('PARENTTWO.BAR', child.bar())
+    self.assertEquals('CHILD.FOO', child.foo())
+    self.assertEquals(32, child.p1)
+    self.assertEquals(42, child.value)
 
   def testMini(self):
     class M:
@@ -232,7 +282,7 @@ class PobjectsTest(unittest.TestCase):
         class B(A):
           def Foo(): pass
         """)
-    
+
 
 if __name__ == '__main__':
   unittest.main()
