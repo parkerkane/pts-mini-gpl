@@ -1,0 +1,76 @@
+--- leptonica-1.68/src/environ.h.orig	2011-03-07 08:02:55.000000000 +0100
++++ leptonica-1.68/src/environ.h	2012-07-10 17:44:42.516894500 +0200
+@@ -85,22 +85,22 @@
+  * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*
+  *                 Environ variables with I/O libraries               *
+  *               Manual Configuration Only: NOT AUTO_CONF             *
+  *--------------------------------------------------------------------*/
+ /*
+  *  Leptonica provides interfaces to link to five external image I/O
+  *  libraries, plus zlib.  Setting any of these to 0 here causes
+  *  non-functioning stubs to be linked.
+  */
+ #ifndef HAVE_CONFIG_H
+-#define  HAVE_LIBJPEG     1
+-#define  HAVE_LIBTIFF     1
++#define  HAVE_LIBJPEG     0
++#define  HAVE_LIBTIFF     0
+ #define  HAVE_LIBPNG      1
+ #define  HAVE_LIBZ        1
+ #define  HAVE_LIBGIF      0
+ #define  HAVE_LIBUNGIF    0
+ #define  HAVE_LIBWEBP     0
+ #endif  /* ~HAVE_CONFIG_H */
+ 
+ /*
+  * On linux systems, you can do I/O between Pix and memory.  Specifically,
+  * you can compress (write compressed data to memory from a Pix) and
+--- leptonica-1.68/src/pngio.c.orig	2011-02-01 06:41:12.000000000 +0100
++++ leptonica-1.68/src/pngio.c	2012-07-10 17:51:33.764556190 +0200
+@@ -100,20 +100,21 @@
+ 
+ #ifdef HAVE_CONFIG_H
+ #include "config_auto.h"
+ #endif  /* HAVE_CONFIG_H */
+ 
+ /* --------------------------------------------*/
+ #if  HAVE_LIBPNG   /* defined in environ.h */
+ /* --------------------------------------------*/
+ 
+ #include "png.h"
++#include "zlib.h"
+ 
+ /* ----------------Set defaults for read/write options ----------------- */
+     /* strip 16 bpp --> 8 bpp on reading png; default is for stripping */
+ static l_int32   var_PNG_STRIP_16_TO_8 = 1;
+     /* strip alpha on reading png; default is for stripping */
+ static l_int32   var_PNG_STRIP_ALPHA = 1;
+     /* write alpha for 32 bpp images; default is to write only RGB */
+ static l_int32   var_PNG_WRITE_ALPHA = 0;
+     /* zlib compression in png; default is for standard compression */
+ static l_int32   var_ZLIB_COMPRESSION = Z_DEFAULT_COMPRESSION;
+--- leptonica-1.68/src/utils.c.orig	2011-03-07 20:04:27.000000000 +0100
++++ leptonica-1.68/src/utils.c	2012-07-10 17:53:06.424029260 +0200
+@@ -3194,21 +3194,21 @@
+     FREE(utime_start);
+     return (l_float32)(signed)hnsec / 10000000.0;
+ }
+ 
+ void
+ l_getCurrentTime(l_int32  *sec,
+                  l_int32  *usec)
+ {
+ ULARGE_INTEGER  utime, birthunix;
+ FILETIME        systemtime;
+-LONGLONG        birthunixhnsec = 116444736000000000;  /*in units of 100 ns */
++LONGLONG        birthunixhnsec = 116444736000000000ll;  /*in units of 100 ns */
+ LONGLONG        usecs;
+ 
+     GetSystemTimeAsFileTime(&systemtime);
+     utime.LowPart  = systemtime.dwLowDateTime;
+     utime.HighPart = systemtime.dwHighDateTime;
+ 
+     birthunix.LowPart = (DWORD) birthunixhnsec;
+     birthunix.HighPart = birthunixhnsec >> 32;
+ 
+     usecs = (LONGLONG) ((utime.QuadPart - birthunix.QuadPart) / 10);
