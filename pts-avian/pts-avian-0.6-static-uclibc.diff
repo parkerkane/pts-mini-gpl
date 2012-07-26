@@ -1,0 +1,341 @@
+--- compile.sh.orig	2012-07-26 15:32:20.040756337 +0200
++++ compile.sh	2012-07-26 15:30:54.391241318 +0200
+@@ -0,0 +1,62 @@
++#! /bin/bash --
++# by pts@fazekas.hu at Thu Jul 26 15:30:29 CEST 2012
++
++SYMGEN='my $S="";$L=2;while(<STDIN>){$L+=length($1)+length($2)+2,$S.="    \"$1 $2\\0\"\n" if m@^([0-9a-f]{8}) \S (classpathJar$|Avian_\S+|Java_\S+)$@}print "extern \"C\" char syms[];\nchar syms[$L] =\n$S;\n"'
++CMD_PREFIX="${CMD_PREFIX:-/usr/local/cross-compiler/bin/i686-}"
++CC="${CMD_PREFIX}gcc -static -fno-stack-protector -fno-strict-aliasing"
++CXX="${CMD_PREFIX}g++ -static -fno-stack-protector -fno-strict-aliasing"
++MAKE_ARGS=(build-arch=i386 strip=echo
++    build-cc="$CC" build-cxx="$CXX" build/linux-i386/avian)
++
++# Auto-detect $JAVA_HOME
++JAVAC="`type -p javac 2>/dev/null`"
++if test -z "$JAVAC"; then
++  echo "error: javac: not found" >&2
++  exit 2
++fi
++while true; do
++  R="`readlink "$JAVAC"`"
++  test "$R" || break
++  JAVAC="$R"
++done
++JAVA_HOME="${JAVAC%/bin/*}"
++if test "$JAVA_HOME" = "$JAVAC"; then
++  echo "error: javac not in bin: $JAVAC" >&2
++  exit 2
++fi
++if ! test -d "$JAVA_HOME"; then
++  echo "error: JAVA_HOME not found: $JAVA_HOME" >&2
++  exit 2
++fi
++
++set -ex
++export JAVA_HOME="$JAVA_HOME"
++if ! test -s src/emptysyms.cpp; then
++  perl -e 'print "extern char syms[];\nchar syms[] = \"\";\n"' >src/emptysyms.cpp
++fi
++if ! test -s src/syms.cpp; then
++  perl -e 'print "extern char syms[];\nchar syms[] = \"\";\n"' >src/syms.cpp
++fi
++make "${MAKE_ARGS[@]}"
++: >src/syms.cpp
++# TODO(pts): Use the nm of the compiler
++${CMD_PREFIX}nm build/linux-i386/avian | perl -we "$SYMGEN" >src/syms.cpp
++grep '    "[^"]' src/syms.cpp >/dev/null
++make "${MAKE_ARGS[@]}"
++cp src/syms.cpp src/syms.old.cpp
++${CMD_PREFIX}nm build/linux-i386/avian | perl -we "$SYMGEN" >src/syms.cpp
++if ! cmp src/syms.cpp src/syms.old.cpp; then
++  make "${MAKE_ARGS[@]}"
++  cp src/syms.cpp src/syms.old.cpp
++  ${CMD_PREFIX}nm build/linux-i386/avian | perl -we "$SYMGEN" >src/syms.cpp
++  if ! cmp src/syms.cpp src/syms.old.cpp; then
++    make "${MAKE_ARGS[@]}"
++    cp src/syms.cpp src/syms.old.cpp
++    ${CMD_PREFIX}nm build/linux-i386/avian | perl -we "$SYMGEN" >src/syms.cpp
++    cmp src/syms.cpp src/syms.old.cpp
++  fi
++fi
++${CMD_PREFIX}strip build/linux-i386/avian
++ls -l build/linux-i386/avian
++
++: Compile OK.
+--- makefile.orig	2012-07-26 15:07:10.979294968 +0200
++++ makefile	2012-07-26 15:21:23.184474696 +0200
+@@ -577,21 +577,22 @@
+ vm-sources = \
+ 	$(src)/$(system).cpp \
+ 	$(src)/finder.cpp \
+ 	$(src)/machine.cpp \
+ 	$(src)/util.cpp \
+ 	$(src)/heap.cpp \
+ 	$(src)/$(process).cpp \
+ 	$(src)/classpath-$(classpath).cpp \
+ 	$(src)/builtin.cpp \
+ 	$(src)/jnienv.cpp \
+-	$(src)/process.cpp
++	$(src)/process.cpp \
++	$(src)/syms.cpp
+ 
+ vm-asm-sources = $(src)/$(asm).S
+ 
+ target-asm = $(asm)
+ 
+ ifeq ($(process),compile)
+ 	vm-sources += \
+ 		$(src)/compiler.cpp \
+ 		$(src)/$(target-asm).cpp
+ 
+@@ -651,21 +652,22 @@
+ driver-dynamic-objects = \
+ 	$(build)/main-dynamic.o
+ 
+ boot-source = $(src)/boot.cpp
+ boot-object = $(build)/boot.o
+ 
+ generator-depends := $(wildcard $(src)/*.h)
+ generator-sources = \
+ 	$(src)/type-generator.cpp \
+ 	$(src)/$(build-system).cpp \
+-	$(src)/finder.cpp
++	$(src)/finder.cpp \
++        $(src)/emptysyms.cpp
+ 
+ ifneq ($(lzma),)
+ 	common-cflags += -I$(lzma) -DAVIAN_USE_LZMA -D_7ZIP_ST
+ 
+ 	vm-sources += \
+ 		$(src)/lzma-decode.cpp
+ 
+ 	generator-sources += \
+ 		$(src)/lzma-decode.cpp
+ 
+--- src/binaryToObject/tools.cpp.orig	2012-07-26 15:07:10.979294968 +0200
++++ src/binaryToObject/tools.cpp	2012-07-24 11:16:44.927780954 +0200
+@@ -115,11 +115,11 @@
+   for(Platform* p = first; p; p = p->next) {
+     if(p->info == info) {
+       return p;
+     }
+   }
+   return 0;
+ }
+ 
+ } // namespace tools
+ 
+-} // namespace avian
+\ No newline at end of file
++} // namespace avian
+--- src/binaryToObject/tools.h.orig	2012-07-26 15:07:10.979294968 +0200
++++ src/binaryToObject/tools.h	2012-07-24 11:16:43.597788918 +0200
+@@ -186,11 +186,11 @@
+ 
+   virtual bool writeObject(OutputStream* out, Slice<SymbolInfo> symbols, Slice<const uint8_t> data, unsigned accessFlags, unsigned alignment) = 0;
+ 
+   static Platform* getPlatform(PlatformInfo info);
+ };
+ 
+ } // namespace tools
+ 
+ } // namespace avian
+ 
+-#endif
+\ No newline at end of file
++#endif
+--- src/environment.h.orig	2012-07-26 15:07:10.979294968 +0200
++++ src/environment.h	2012-07-24 11:16:01.908038581 +0200
+@@ -23,11 +23,11 @@
+ #define AVIAN_PLATFORM_LINUX 1
+ #define AVIAN_PLATFORM_WINDOWS 2
+ #define AVIAN_PLATFORM_DARWIN 3
+ 
+ #define AVIAN_ARCH_UNKNOWN 0
+ #define AVIAN_ARCH_X86 (1 << 8)
+ #define AVIAN_ARCH_X86_64 (2 << 8)
+ #define AVIAN_ARCH_ARM (3 << 8)
+ #define AVIAN_ARCH_POWERPC (4 << 8)
+ 
+-#endif
+\ No newline at end of file
++#endif
+--- src/posix.cpp.orig	2012-07-26 15:07:10.979294968 +0200
++++ src/posix.cpp	2012-07-26 15:10:30.058169372 +0200
+@@ -10,45 +10,61 @@
+ 
+ #ifndef __STDC_CONSTANT_MACROS
+ #  define __STDC_CONSTANT_MACROS
+ #endif
+ 
+ #ifdef __APPLE__
+ #  include "CoreFoundation/CoreFoundation.h"
+ #  undef assert
+ #endif
+ 
++#include "stdio.h"
+ #include "sys/mman.h"
+ #include "sys/types.h"
+ #include "sys/stat.h"
+ #include "sys/time.h"
+ #include "time.h"
+ #include "fcntl.h"
+-#include "dlfcn.h"
+ #include "errno.h"
+ #include "unistd.h"
+ #include "pthread.h"
+ #include "signal.h"
+ #include "sys/ucontext.h"
+ #include "stdint.h"
+ #include "dirent.h"
+ #include "sched.h"
+ 
+ #include "arch.h"
+ #include "system.h"
+ 
+ #define ACQUIRE(x) MutexResource MAKE_NAME(mutexResource_) (x)
+ 
+ using namespace vm;
+ 
++extern "C" char syms[];
++
+ namespace {
+ 
++static void *static_dlsym(const char *name) {
++  char const *p = syms;
++  int vp, n;  // Works for 4-byte pointers.
++  while (*p != '\0') {
++    if (p[8] != ' ') abort();
++    if (0 == strcmp(name, p + 9)) {
++      if (1 > sscanf(p, "%x%n", &vp, &n) || n != 8) abort();
++      return (void*)vp;
++    }
++    p += strlen(p) + 1;
++  }
++  return NULL;
++}
++
+ class MutexResource {
+  public:
+   MutexResource(pthread_mutex_t& m): m(&m) {
+     pthread_mutex_lock(&m);
+   }
+ 
+   ~MutexResource() {
+     pthread_mutex_unlock(m);
+   }
+ 
+@@ -530,41 +546,41 @@
+             bool isMain):
+       s(s),
+       p(p),
+       mainExecutable(isMain),
+       name_(name),
+       nameLength(nameLength),
+       next_(0)
+     { }
+ 
+     virtual void* resolve(const char* function) {
+-      return dlsym(p, function);
++      return static_dlsym(function);
+     }
+ 
+     virtual const char* name() {
+       return name_;
+     }
+ 
+     virtual System::Library* next() {
+       return next_;
+     }
+ 
+     virtual void setNext(System::Library* lib) {
+       next_ = lib;
+     }
+ 
+     virtual void disposeAll() {
+       if (Verbose) {
+         fprintf(stderr, "close %p\n", p);
+       }
+ 
+-      if (not mainExecutable) dlclose(p);
++      // if (not mainExecutable) dlclose(p);
+ 
+       if (next_) {
+         next_->disposeAll();
+       }
+ 
+       if (name_) {
+         ::free(const_cast<char*>(name_));
+       }
+ 
+       ::free(this);
+@@ -841,48 +857,24 @@
+   }
+ 
+   virtual Status load(System::Library** lib,
+                       const char* name)
+   {
+     unsigned nameLength = (name ? strlen(name) : 0);
+     bool isMain = name == 0;
+     if (isMain) {
+       pathOfExecutable(this, &name, &nameLength);
+     }
+-    void* p = dlopen(name, RTLD_LAZY | RTLD_LOCAL);
+- 
+-    if (p) {
+-      if (Verbose) {
+-        fprintf(stderr, "open %s as %p\n", name, p);
+-      }
+-
+-      char* n;
+-      if (name) {
+-        n = static_cast<char*>(allocate(this, nameLength + 1));
+-        memcpy(n, name, nameLength + 1);
+-        if (isMain) {
+-          free(name);
+-        }
+-      } else {
+-        n = 0;
+-      }
+-
+-      *lib = new (allocate(this, sizeof(Library)))
+-        Library(this, p, n, nameLength, isMain);
+-
+-      return 0;
+-    } else {
+-      if (Verbose) {
+-        fprintf(stderr, "dlerror opening %s: %s\n", name, dlerror());
+-      }
+-      return 1;
+-    }
++    if (name != NULL) return 1;
++    *lib = new (allocate(this, sizeof(Library)))
++      Library(this, NULL, NULL, nameLength, isMain);
++    return 0;
+   }
+ 
+   virtual char pathSeparator() {
+     return ':';
+   }
+ 
+   virtual char fileSeparator() {
+     return '/';
+   }
+ 
+--- src/target-fields.h.orig	2012-07-26 15:07:10.989294912 +0200
++++ src/target-fields.h	2012-07-24 11:15:14.468322668 +0200
+@@ -53,11 +53,11 @@
+ #define TARGET_THREAD_THUNKTABLE 2196
+ #define TARGET_THREAD_STACKLIMIT 2220
+ 
+ #  else
+ #    error
+ #  endif
+ #else
+ #  error
+ #endif
+ 
+-#endif
+\ No newline at end of file
++#endif
