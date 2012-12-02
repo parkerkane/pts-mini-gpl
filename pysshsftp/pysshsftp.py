@@ -362,6 +362,7 @@ def SftpUpload(rf, wf, version, msg_ids,
         # Now we managed to read a whole message to res. Let's process it.
         assert len(res) >= 5
         res_type, res_id = struct.unpack('>BL', res[:5])
+        # TODO(pts): Check res_type.
         res_id = int(res_id)
         assert res_id in pending_acks
         pending_acks.remove(res_id)
