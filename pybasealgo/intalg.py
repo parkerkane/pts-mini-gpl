@@ -2,13 +2,24 @@
 
 """Number theory and other integer algorithms in pure Python 2.x.
 
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+Works with Python 2.4, 2.5, 2.6 and 2.7. Developed using Python 2.6. Doesn't
+work with Python 3.x.
+
 Functions in this module don't use floating point calculations unless the
 docstring of the function mentions float.
 
 This module assumes that `/' on integers rounds down. (Not true in Python
 3.x.)
-
-This module has been tested with Python 2.6.
 
 Python has arbitrary precision integers built-in: the long type.
 
@@ -37,6 +48,7 @@ Python has modular exponentiation built-in: pow(a, b, c).
 # TODO(pts): Add invert (modular inverse) from pyecm. Isn't that too long?
 # TODO(pts): pyecm.py has a strange next_prime implementation. Is it faster?
 #   How does it work? Copy it. Does it contain an inlined Rabin-Miller test?
+# TODO(kat): Implement the Euler totient function using factorization.
 
 __author__ = 'pts@fazekas.hu (Peter Szabo)'
 
@@ -92,7 +104,10 @@ def sqrt_floor(n):
   if n < 4:
     if n < 0:
       raise ValueError('Negative input for square root.')
-    return 1 if n else 0
+    if n:
+      return 1
+    else:
+      return 0
   #if n < (1 << 328):
   #  # This is a bit faster than computing bit_count(n), but checking the
   #  # condition is slow.
@@ -350,6 +365,8 @@ LOG2_256_TABLE = struct.unpack('>257H',
 
 def log2_256_more(a):
   """Returns a nonnegative integer at least 256 * log2(a).
+
+  TODO(pts): How close is this upper bound?
 
   Input: a is an integer >= 0.
   """
@@ -659,7 +676,6 @@ def choose(n, k):
     return 1
 
 
-# TODO(pts): Implement faster factorization.
 def yield_slow_factorize(n):
   """Yields an increasing list of prime factors whose product is n.
 
@@ -712,8 +728,7 @@ def divisor_count(n):
   q = 0
   e = 0
   c = 1
-  # TODO(pts): Use a faster factorization (as soon as avaialable).
-  for p in yield_slow_factorize(n):
+  for p in factorize(n):
     if p == q:
       e += 1
     else:
@@ -751,9 +766,7 @@ def divisor_sum(n):
   if n <= 0:
     raise ValueError
   s = 1
-  # TODO(kat): Implement the Euler totient function using factorization.
-  # TODO(pts): Use a faster factorization (as soon as avaialable).
-  for prime, exp in rle(yield_slow_factorize(n)):
+  for prime, exp in rle(factorize(n)):
     s *= (prime ** (exp + 1) - 1) / (prime - 1)
   return s
 
