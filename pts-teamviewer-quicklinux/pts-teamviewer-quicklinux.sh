@@ -101,12 +101,12 @@ if ! test -f "$DEB.extracted"; then
   true >>"$DEB.extracted"
 fi
 
-<./opt/teamviewer/teamviewer/5/bin/wrapper \
->./opt/teamviewer/teamviewer/5/bin/wrapper2 \
+<./opt/teamviewer/teamviewer/7/bin/wrapper \
+>./opt/teamviewer/teamviewer/7/bin/wrapper2 \
 grep -vE "/winelog|WINEPREFIX="
 
 export WINEPREFIX="$PWD"
-"$BASH" ./opt/teamviewer/teamviewer/5/bin/wrapper2 \
-    "c:\\Program Files\\TeamViewer\\Version5\\TeamViewer.exe"
+"$BASH" ./opt/teamviewer/teamviewer/7/bin/wrapper2 \
+    "c:\\Program Files\\TeamViewer\\Version7\\TeamViewer.exe"
 
 END
