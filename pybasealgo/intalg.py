@@ -48,7 +48,6 @@ Python has modular exponentiation built-in: pow(a, b, c).
 # TODO(pts): Add invert (modular inverse) from pyecm. Isn't that too long?
 # TODO(pts): pyecm.py has a strange next_prime implementation. Is it faster?
 #   How does it work? Copy it. Does it contain an inlined Rabin-Miller test?
-# TODO(kat): Implement the Euler totient function using factorization.
 
 __author__ = 'pts@fazekas.hu (Peter Szabo)'
 
@@ -1139,3 +1138,113 @@ def factorize(n, divisor_finder=None, random_obj=None):
         n = d
   ps.sort()
   return ps
+
+
+def totient(n):
+  """Returns the Euler totient of a nonnegative integer.
+
+  http://en.wikipedia.org/wiki/Euler%27s_totient_function
+
+  Args:
+    n: Integer >= 0.
+  """
+  if n == 0:
+    return 0
+  result = 1
+  for p, a in rle(factorize(n)):
+    result *= p ** (a - 1) * (p - 1)
+  return result
+
+
+def totients_upto(limit, force_recursive=False):
+  """Computes the Euler totient of nonnegative integers up to limit.
+
+  http://en.wikipedia.org/wiki/Euler%27s_totient_function
+
+  Args:
+    limit: Integer >= 0.
+    force_recursive: bool indicating whether the recursive implementation
+      should be forced.
+  Returns:
+    A list of length `limit + 1', whose value at index i is totient(i).
+  """
+  if limit <= 1:
+    if limit:
+      return [0, 1]
+    else:
+      return [0]
+  if not force_recursive and limit <= 1800000:
+    # For small values, _totients_upto_iter is faster. _totients_upto_iter
+    # also uses double memory, so let's not use it for large values.
+    return _totients_upto_iter(limit)
+  primes = primes_upto(limit)
+  primec = len(primes)
+  result = [None] * (limit + 1)
+  result[0] = 0
+  result[1] = 1
+
+  def generate(i, n, t):  # Populates `result'.
+    #print 'generate(i=%d, n=%d, t=%d, p=%d)' % (i, n, t, primes[i])
+    while 1:
+      p = primes[i]
+      i += 1
+      n0, t0 = n, t
+      n *= p
+      t *= p - 1
+      while n <= limit:
+        # assert result[n] is None  # True but speed.
+        result[n] = t
+        if i < primec:
+          generate(i, n, t)
+        n *= p
+        t *= p
+      n, t = n0, t0
+      if i >= primec or n * primes[i] > limit:
+        break
+
+  generate(0, 1, 1)
+  # assert not [1 for x in result if x is None]  # True but speed.
+  return result
+
+
+def _totients_upto_iter(limit):
+  """Like totients_upto, but iterative.
+
+  Input: limit is an integer >= 1.
+  """
+  ns = [1]
+  result = [None] * (limit + 1)
+  result[0] = 0
+  result[1] = 1
+  limit_sqrt = sqrt_floor(limit) + 1
+  primes = primes_upto(limit)
+  limit_idx2 = 0
+  for p in primes:
+    if p > limit_sqrt:  # No sorting anymore.
+      t = p - 1
+      for i in xrange(limit_idx2):
+        n = ns[i]
+        pan = p * n
+        if pan > limit:
+          break
+        #assert result[pan] is None, (p, n, pan)  # True but speed.
+        result[pan] = result[n] * t
+      continue
+    ns.sort()  # Fast sort, because of lots of increasing runs.
+    pa = p
+    ta = p - 1
+    limit_idx = len(ns)
+    while pa <= limit:
+      ns.append(pa)
+      result[pa] = ta
+      for i in xrange(1, limit_idx):
+        n = ns[i]
+        pan = pa * n
+        if pan > limit:
+          break
+        ns.append(pan)
+        result[pan] = ta * result[n]
+      pa *= p
+      ta *= p
+    limit_idx2 = len(ns)
+  return result

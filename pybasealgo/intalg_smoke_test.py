@@ -159,6 +159,25 @@ class IntalgSmokeTest(unittest.TestCase):
       assert b <= n
       self.assertEquals(0, n % b, (b, n))
 
+  def testTotient(self):
+    expected = [0, 1, 1, 2, 2, 4, 2, 6, 4, 6, 4, 10, 4, 12, 6, 8, 8, 16, 6,
+                18, 8, 12, 10, 22]
+    self.assertEquals([0], intalg.totients_upto(0))
+    self.assertEquals([0], intalg.totients_upto(0, force_recursive=1))
+    self.assertEquals([0, 1], intalg.totients_upto(1, force_recursive=1))
+    self.assertEquals([0, 1], intalg._totients_upto_iter(1))
+    self.assertEquals([0, 1, 1], intalg.totients_upto(2, force_recursive=1))
+    self.assertEquals([0, 1, 1], intalg._totients_upto_iter(2))
+    self.assertEquals(expected, intalg.totients_upto(23))
+    self.assertEquals(expected, intalg.totients_upto(23, force_recursive=1))
+    self.assertEquals(expected, intalg._totients_upto_iter(23))
+    self.assertEquals(expected, map(intalg.totient, xrange(24)))
+    limit = 500
+    expected2 = map(intalg.totient, xrange(limit + 1))
+    self.assertEquals(expected2, intalg.totients_upto(limit))
+    self.assertEquals(expected2, intalg.totients_upto(limit, force_recursive=1))
+    self.assertEquals(expected2, intalg._totients_upto_iter(limit))
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -111,7 +111,7 @@ class IntalgSmokeTest(unittest.TestCase):
           if i & (1 << j):
             r *= ps[j]
         divisors.add(r)
-        
+
       r = intalg.brent(n, random_obj)
       assert r in divisors
       r = intalg.pollard(n, random_obj)
