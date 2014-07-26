@@ -1248,3 +1248,47 @@ def _totients_upto_iter(limit):
       ta *= p
     limit_idx2 = len(ns)
   return result
+
+
+def divisor_counts_upto(limit):
+  """Computes the number of divisors of nonnegative integers up to limit.
+
+  Args:
+    limit: Integer >= 0.
+  Returns:
+    A list of length `limit + 1', whose value at index i is the number of
+    positive integers who divide i. At index 0, 0 is returned.
+  """
+  if limit <= 1:
+    if limit:
+      return [0, 1]
+    else:
+      return [0]
+  primes = primes_upto(limit)
+  primec = len(primes)
+  result = [None] * (limit + 1)
+  result[0] = 0
+  result[1] = 1
+
+  def generate(i, n, t):  # Populates `result'.
+    #print 'generate(i=%d, n=%d, t=%d, p=%d)' % (i, n, t, primes[i])
+    while 1:
+      p = primes[i]
+      i += 1
+      n0, t0 = n, t
+      n *= p
+      t += t0
+      while n <= limit:
+        # assert result[n] is None  # True but speed.
+        result[n] = t
+        if i < primec:
+          generate(i, n, t)
+        n *= p
+        t += t0
+      n, t = n0, t0
+      if i >= primec or n * primes[i] > limit:
+        break
+
+  generate(0, 1, 1)
+  # assert not [1 for x in result if x is None]  # True but speed.
+  return result
