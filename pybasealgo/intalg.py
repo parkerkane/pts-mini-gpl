@@ -1293,3 +1293,34 @@ def divisor_counts_upto(limit):
   generate(0, 1, 1)
   # assert not [1 for x in result if x is None]  # True but speed.
   return result
+
+
+def yield_divisors_unsorted(n):
+  """Yields the positive divisors of n, in any order."""
+  pas = n > 1 and tuple(rle(factorize(n)))
+
+  def generate(i):
+    p, a = pas[i]
+    pps = [1]
+    while a >= len(pps):
+      pps.append(pps[-1] * p)
+    if i:
+      for d in generate(i - 1):
+        for pp in pps:
+          yield d * pp
+    else:
+      for pp in pps:
+        yield pp
+
+  if pas:
+    for d in generate(len(pas) - 1):
+      yield d
+  else:
+    yield 1
+
+
+def divisors(n):
+  """Returns the list of positive divisors of n in increasing order."""
+  ds = list(yield_divisors_unsorted(n))
+  ds.sort()
+  return ds

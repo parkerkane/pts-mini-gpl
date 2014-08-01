@@ -186,6 +186,10 @@ class IntalgSmokeTest(unittest.TestCase):
          6, 4, 8, 2, 12, 2, 4, 6, 6, 4, 8, 2, 10, 5, 4, 2, 12, 4, 4, 4, 8, 2,
          12, 4, 6, 4, 4, 4, 12, 2, 6, 6, 9], intalg.divisor_counts_upto(100))
 
+  def testDivisors(self):
+    self.assertEquals([1], intalg.divisors(1))
+    self.assertEquals([1, 2, 3, 4, 6, 12], intalg.divisors(12))
+
 
 if __name__ == '__main__':
   unittest.main()
