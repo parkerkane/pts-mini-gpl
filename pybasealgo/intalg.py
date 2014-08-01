@@ -1324,3 +1324,32 @@ def divisors(n):
   ds = list(yield_divisors_unsorted(n))
   ds.sort()
   return ds
+
+
+def inv_totient(t):
+  """Returns the list of integers whose totient is t, in increasing order."""
+
+  ps = [d + 1 for d in divisors(t) if is_prime(d + 1)]
+
+  def generate(i, n, tr):
+    # assert tr >= 1  # True, but skipped for performance.
+    if tr == 1:
+      yield n
+    else:
+      while i < len(ps):
+        p = ps[i]
+        if p - 1 > tr:  # Shortcut, no more primes can divide.
+          break
+        i += 1
+        if tr % (p - 1) == 0:
+          tr2 = tr / (p - 1)
+          n2 = n * p
+          for v in generate(i, n2, tr2):
+            yield v
+          while tr2 % p == 0:
+            tr2 /= p
+            n2 *= p
+            for v in generate(i, n2, tr2):
+              yield v
+
+  return sorted(list(generate(0, 1, t)))

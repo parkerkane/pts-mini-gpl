@@ -190,6 +190,15 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([1], intalg.divisors(1))
     self.assertEquals([1, 2, 3, 4, 6, 12], intalg.divisors(12))
 
+  def testInvTotient(self):
+    self.assertEquals([1], intalg.inv_totient(1))
+    self.assertEquals([3, 4, 6], intalg.inv_totient(2))
+    self.assertEquals([], intalg.inv_totient(3))
+    self.assertEquals([5, 8, 10, 12], intalg.inv_totient(4))
+    self.assertEquals(
+        [73, 91, 95, 111, 117, 135, 146, 148, 152, 182, 190,
+         216, 222, 228, 234, 252, 270], intalg.inv_totient(72))
+
 
 if __name__ == '__main__':
   unittest.main()
