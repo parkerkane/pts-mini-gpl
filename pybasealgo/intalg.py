@@ -1077,6 +1077,7 @@ def factorize(n, divisor_finder=None, random_obj=None):
         ps.append(p)
         n /= p
       q = sqrt_floor(n)
+  n = int(n)  # This is fast: O(1) for int and long.
   if n == 1:
     ps.sort()
     return ps
@@ -1109,7 +1110,7 @@ def factorize(n, divisor_finder=None, random_obj=None):
     # finished. In fact, i may start earlier. So we have to keep the i values
     # in the stack.
     for i in xrange(i, len(pds)):
-      p = pds[i]
+      p = int(pds[i])
       while not (n % p):
         ps.append(p)
         n /= p
