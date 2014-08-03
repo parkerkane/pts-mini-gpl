@@ -1297,7 +1297,10 @@ def divisor_counts_upto(limit):
 
 def yield_divisors_unsorted(n):
   """Yields the positive divisors of n, in any order."""
-  pas = n > 1 and tuple(rle(factorize(n)))
+  if isinstance(n, (list, tuple)):
+    pas = n
+  else:
+    pas = n > 1 and tuple(rle(factorize(n)))
 
   def generate(i):
     p, a = pas[i]
