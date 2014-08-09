@@ -13,7 +13,7 @@ import intalg
 class IntalgSmokeTest(unittest.TestCase):
   def setUp(self):
     intalg.clear_prime_cache()
-  
+
   def tearDown(self):
     intalg.clear_prime_cache()
 
@@ -251,8 +251,35 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([512], intalg._prime_cache_limit_ary[:])
     self.assertEquals(None, intalg.prime_index(600, 600))
     self.assertEquals([600], intalg._prime_cache_limit_ary[:])
-    self.assertEquals(109, intalg.prime_index(601, 155))
+    self.assertEquals(109, intalg.prime_index(601, limit=155))
     self.assertEquals([620], intalg._prime_cache_limit_ary[:])
+
+  def testIsPrime(self):
+    limit = 100
+    primes = intalg.primes_upto(limit)
+    self.assertEquals(97, primes[-1])
+    primes2 = [n for n in xrange(limit + 1) if intalg.is_prime(n)]
+    self.assertEquals(primes, primes2)
+    self.assertEquals('True', repr(intalg.is_prime(97)))
+    self.assertEquals('False', repr(intalg.is_prime(98)))
+    self.assertEquals('False', repr(intalg.is_prime(99)))
+    self.assertEquals('False', repr(intalg.is_prime(100)))
+
+    self.assertEquals([1], intalg._prime_cache_limit_ary[:])
+    intalg.prime_index(257)
+    self.assertEquals([512], intalg._prime_cache_limit_ary[:])
+    primes3 = [n for n in xrange(99) if intalg.is_prime(n)]
+    self.assertEquals(primes, primes3)
+
+    limit = 1009
+    primes = intalg.primes_upto(limit)
+    self.assertEquals(1009, primes[-1])
+    primes2 = [n for n in xrange(limit + 1) if intalg.is_prime(n)]
+    self.assertEquals(primes, primes2)
+
+    del intalg._prime_cache[:]
+    primes4 = [n for n in xrange(99) if intalg.is_prime(n)]
+    self.assertEquals([2], primes4)  # Because of the fake empty _prime_cache.
 
 
 if __name__ == '__main__':
