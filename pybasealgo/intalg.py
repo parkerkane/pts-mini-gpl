@@ -585,6 +585,9 @@ def fraction_to_float(a, b):
 def prime_index(n, limit=256):
   """Returns the index of n in the prime list if n is prime, otherwise None.
 
+  Builds an in-memory prime cache for all primes up to n (and maybe a bit
+  beyond).
+
   Args:
     n: A nonnegative integer.
     limit: Minimum number of prime cache size to build if needed.
@@ -605,6 +608,33 @@ def prime_index(n, limit=256):
   if i >= len(cache) or cache[i] != n:
     return None  # n is not a prime.
   return i
+
+
+def prime_count(n, limit=256):
+  """Returns the number of primes at most n.
+
+  This is pi(n), the prime-counting function:
+  http://en.wikipedia.org/wiki/Prime-counting_function
+
+  Builds an in-memory prime cache for all primes up to n (and maybe a bit
+  beyond).
+
+  Args:
+    n: A nonnegative integer.
+    limit: Minimum number of prime cache size to build if needed.
+  Returns:
+    The number of primes p for which 2 <= p <= n. For example:
+    prime_count(0) == 0, prime_count(1) == 0, prime_count(2) == 1,
+    prime_count(3) == 2, prime_count(4) == 2, prime_count(5) == 3.
+  """
+  if n > _prime_cache_limit_ary[0]:
+    while limit < n:
+      limit <<= 1
+    _prime_cache[:] = primes_upto(limit)
+    # For thread safety and for good _prime_cache interaction between
+    # primes_upto and prime_index, set this after updating _prime_cache.
+    _prime_cache_limit_ary[0] = limit
+  return bisect.bisect_right(_prime_cache, n)
 
 
 def clear_prime_cache():

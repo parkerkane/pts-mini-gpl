@@ -287,9 +287,6 @@ class IntalgSmokeTest(unittest.TestCase):
 
   def testPrimeIndex(self):
     self.assertEquals(2, intalg.prime_index(5))
-    del intalg._prime_cache[:]
-    intalg._prime_cache_limit_ary[:] = [1]
-    self.assertEquals(2, intalg.prime_index(5))
     self.assertEquals([256], intalg._prime_cache_limit_ary[:])
     self.assertEquals(2, intalg.prime_index(5))
     self.assertEquals(None, intalg.prime_index(4))
@@ -310,6 +307,31 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([600], intalg._prime_cache_limit_ary[:])
     self.assertEquals(109, intalg.prime_index(601, limit=155))
     self.assertEquals([620], intalg._prime_cache_limit_ary[:])
+
+  def testPrimeCount(self):
+    self.assertEquals(3, intalg.prime_count(6))
+    self.assertEquals(3, intalg.prime_count(5))
+    self.assertEquals([256], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(3, intalg.prime_count(5))
+    self.assertEquals(2, intalg.prime_count(4))
+    self.assertEquals(2, intalg.prime_count(3))
+    self.assertEquals(1, intalg.prime_count(2))
+    self.assertEquals(0, intalg.prime_count(1))
+    self.assertEquals(0, intalg.prime_count(0))
+    self.assertEquals(54, intalg.prime_count(255))
+    self.assertEquals(len(intalg._prime_cache), intalg.prime_count(251))
+    self.assertEquals(len(intalg._prime_cache), intalg.prime_count(251))
+    self.assertEquals([256], intalg._prime_cache_limit_ary[:])
+    # Grows the cache.
+    self.assertEquals(intalg.prime_count(251) + 1, intalg.prime_count(257))
+    self.assertEquals([512], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(intalg.prime_count(251) + 1, intalg.prime_count(257, 600))
+    self.assertEquals([512], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(109, intalg.prime_count(600, 600))
+    self.assertEquals([600], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(110, intalg.prime_count(601, limit=155))
+    self.assertEquals([620], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(110, intalg.prime_count(602))
 
   def testIsPrime(self):
     limit = 100
