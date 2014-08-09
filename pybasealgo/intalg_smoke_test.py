@@ -134,6 +134,7 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([2, 3, 5, 7, 11, 13, 17, 19, 23], intalg.primes_upto(23))
     self.assertEquals([2, 3, 5, 7, 11, 13, 17, 19, 23], intalg.primes_upto(24))
     primes = intalg.primes_upto(100)
+    self.assertEquals([1], intalg._prime_cache_limit_ary[:])
     self.assertEquals(None, intalg.prime_index(100))
     self.assertEquals(len(primes) - 1, intalg.prime_index(97))
     primes2 = intalg.primes_upto(100)
@@ -141,6 +142,25 @@ class IntalgSmokeTest(unittest.TestCase):
 
     intalg._prime_cache[:] = [6, 77, 8]
     primes3 = intalg.primes_upto(100)
+    self.assertEquals([6, 77, 8], primes3)  # Because of the fake _prime_cache.
+
+  def testFirstPrimesMoremem(self):
+    self.assertEquals([], intalg.first_primes_moremem(0))
+    self.assertEquals([2], intalg.first_primes_moremem(1))
+    self.assertEquals([2, 3, 5, 7, 11, 13, 17, 19],
+                      intalg.first_primes_moremem(8))
+    self.assertEquals([2, 3, 5, 7, 11, 13, 17, 19, 23],
+                      intalg.first_primes_moremem(9))
+    primes = intalg.first_primes_moremem(100)
+    self.assertEquals(100, len(primes))
+    self.assertEquals([1], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(len(primes) - 1, intalg.prime_index(primes[-1]))
+    self.assertEquals([1024], intalg._prime_cache_limit_ary[:])
+    primes2 = intalg.first_primes_moremem(100)
+    self.assertEquals(primes, primes2)
+
+    intalg._prime_cache[:] = [6, 77, 8]
+    primes3 = intalg.first_primes_moremem(100)
     self.assertEquals([6, 77, 8], primes3)  # Because of the fake _prime_cache.
 
   def testYieldSlowFactorize(self):

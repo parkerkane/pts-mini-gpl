@@ -495,6 +495,10 @@ def first_primes_moremem(i):
   """
   if i <= len(FIRST_PRIMES):
     return map(ord, FIRST_PRIMES[:i])
+  cache = _prime_cache
+  if i <= len(cache):
+    return cache[:i]
+
   # Make n be an integer at least n * (math.log(n) + math.log(math.log(n))),
   # as given by p_i <= i * ln(i) + i * ln(ln(i)) if i >= 6, based on
   # http://en.wikipedia.org/wiki/Prime-counting_function#Inequalities
@@ -514,7 +518,7 @@ def first_primes(i):
   # as given by p_i <= i * ln(i) + i * ln(ln(i)) if i >= 6, based on
   # http://en.wikipedia.org/wiki/Prime-counting_function#Inequalities
   n = log_more(i, log_more(i, i))
-  # The rest is equivalent to this, but the res saves memory by not creating
+  # The rest is equivalent to this, but the rest saves memory by not creating
   # a long temporary list, and it's about 9.1% slower.
   #
   #   return primes_upto(n)[:i]
