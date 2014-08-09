@@ -237,6 +237,11 @@ _prime_cache = []
 _prime_cache_limit_ary = [1]
 
 
+def clear_prime_cache():
+  _prime_cache_limit_ary[:] = [1]  # For thread safety.
+  del _prime_cache[:]
+
+
 def primes_upto(n):
   """Returns a list of prime numbers <= n using the sieve algorithm.
 
@@ -304,8 +309,8 @@ def yield_primes_upto(n):
   """Yields primes <= n.
 
   Slower (by a factor of about 5.399) than primes_upto(...), but uses only
-  O(sqrt(pi(n))) memory (instead of O(n)), where pi(n) is the number of
-  primes <= n.
+  O(sqrt(prime_count(n))) memory (instead of O(n)), where pi(n) is the
+  number of primes <= n.
   """
   # TODO(pts): Add some kind of caching variant.
   #
@@ -637,13 +642,84 @@ def prime_count(n, limit=256):
   return bisect.bisect_right(_prime_cache, n)
 
 
-def clear_prime_cache():
-  _prime_cache_limit_ary[:] = [1]  # For thread safety.
-  del _prime_cache[:]
+def prime_count_more(n, accuracy=100000):
+  """Returns an integer which is at least the number of primes up to n.
+
+  Please note that although prime_count(n) is increasing as n increases,
+  this function in't. A large decrease (e.g. 39) between consecutive
+  return values is possible because of rounding errors.
+
+  Args:
+    n: An integer, upper limit, count these primes p: 2 <= p <= n.
+    accuracy: An upper limit on how much larger the result is allowed to be
+      relatively: prime_count_more(n, accuracy) * 10 ** 6 < prime_count(n) *
+      (10 ** 6 + accuracy) is always true for n > 1 (and it's equal for
+      n <= 1). Please note that the minimum allowed accuracy is currently 3000.
+  Returns:
+    An upper bound of the number of primes p in: 2 <= p <= n. prime_count(n)
+    <= prime_count_more(n) is always true.
+  """
+  if not isinstance(n, (int, long)):
+    raise TypeError
+  if not isinstance(accuracy, (int, long)):
+    raise TypeError
+  if accuracy < 3000:
+    raise ValueError('Desired accuracy must be >= 3000, got: %r' % (accuracy,))
+
+  if n < 0:
+    return 0  # Accurate.
+  if n < 127:  # Accurate value from lookup table.
+    return ord('\0\0\1\2\2\3\3\4\4\4\4\5\5\6\6\6\6\7\7\10\10\10\10\t\t\t\t\t'
+               '\t\n\n\x0b\x0b\x0b\x0b\x0b\x0b\x0c\x0c\x0c\x0c\r\r\x0e\x0e\x0e'
+               '\x0e\x0f\x0f\x0f\x0f\x0f\x0f\x10\x10\x10\x10\x10\x10\x11\x11'
+               '\x12\x12\x12\x12\x12\x12\x13\x13\x13\x13\x14\x14\x15\x15\x15'
+               '\x15\x15\x15\x16\x16\x16\x16\x17\x17\x17\x17\x17\x17\x18\x18'
+               '\x18\x18\x18\x18\x18\x18\x19\x19\x19\x19\x1a\x1a\x1b\x1b\x1b'
+               '\x1b\x1c\x1c\x1d\x1d\x1d\x1d\36\36\36\36\36\36\36\36\36\36\36'
+               '\36\36\36'[n])
+
+  if (accuracy >= 100000 or n > 302976 or (accuracy >= 50000 and n > 546) or
+      (accuracy >= 10000 and n > 11775) or (accuracy >= 5000 and n > 48382) or
+      (accuracy >= 4000 and n > 70143)
+      # or (accuracy >= 3000 and n > 302976)  # This last one is implied.
+     ):
+    # The value returned below is >= prime_count(n) for n >= 4, and it's at
+    # most 10% larger than prime_count(n) for n >= 101, and it's less than
+    # 10% larger than prime_count(n) for n >= 127.
+    #
+    # Proof of the upper bound for n > 60184: It computes an upper bound of
+    # n / (math.log(n) - 1.1)
+    # accurately, based on the theorem by Pierre Dusart
+    # (http://en.wikipedia.org/wiki/Prime-counting_function#Inequalities),
+    # assuming that floating point arithmetic is correct.
+    #
+    # The conditions for accuracy above were verified empirically, for n up to
+    # 10 ** 7.
+    v = int(n * 5540 / (log2_256_less(n) * 15 - 6094))
+    if 24107 <= n <= 60174:
+      v += 3  # `v += 1' and `v += 2' would have been enough in some cases.
+    return v
+
+  # n is too small, we have to compute accurately.
+  if n <= _prime_cache_limit_ary[0]:
+    return bisect.bisect_right(_prime_cache, n)
+  if accuracy >= 50000:
+    limit = 546
+  elif accuracy >= 10000:
+    limit = 11775
+  elif accuracy >= 5000:
+    limit = 48382
+  elif accuracy >= 4000:
+    limit = 70143
+  elif accuracy >= 3000:
+    limit = 302076
+  else:
+    assert 0, 'Cannot compute limit for accuracy=%d' % accuracy
+  return prime_count(n, limit)
 
 
 def is_prime(n, accuracy=None):
-  """Returns wheter the integer n is probably a prime.
+  """Returns bool indicating whether the integer n is probably a prime.
 
   Uses the deterministic Rabin-Miller primality test if accuracy is None, and
   a probabilistic version (with a fixed set of ``pseudo-random'' primes) of

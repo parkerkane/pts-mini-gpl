@@ -333,6 +333,32 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([620], intalg._prime_cache_limit_ary[:])
     self.assertEquals(110, intalg.prime_count(602))
 
+  def testPrimeCountMore(self):
+    prime_counts = map(intalg.prime_count, xrange(3000))
+    prime_counts2 = map(intalg.prime_count_more, xrange(3000))
+    self.assertEquals([True], list(set((
+        a <= b for a, b in zip(prime_counts, prime_counts2)))))
+    self.assertFalse(prime_counts == prime_counts2)  # Not accurate.
+    self.assertEquals(prime_counts[:127], prime_counts2[:127])
+    # Default accuracy.
+    prime_counts3 = [intalg.prime_count_more(n, 100000) for n in xrange(3000)]
+    self.assertEquals([True], list(set((
+        a <= b for a, b in zip(prime_counts, prime_counts3)))))
+    self.assertEquals(prime_counts2, prime_counts3)
+    self.assertEquals([True], list(set((
+        a * 11 > b * 10  # Accurate enough.
+        for a, b in zip(prime_counts, prime_counts3)[2:]))))
+
+    # Better accuracy.
+    prime_counts4 = [intalg.prime_count_more(n, 50000) for n in xrange(3000)]
+    self.assertEquals([True], list(set((
+        a <= b for a, b in zip(prime_counts, prime_counts4)))))
+    self.assertFalse(prime_counts == prime_counts4)  # Not accurate.
+    self.assertEquals(prime_counts[:547], prime_counts4[:547])
+    self.assertEquals([True], list(set((
+        a * 105 > b * 100  # Accurate enough.
+        for a, b in zip(prime_counts, prime_counts4)[2:]))))
+
   def testIsPrime(self):
     limit = 100
     primes = intalg.primes_upto(limit)
