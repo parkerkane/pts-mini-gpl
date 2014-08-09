@@ -137,8 +137,8 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([1], intalg._prime_cache_limit_ary[:])
     self.assertEquals(None, intalg.prime_index(100))
     self.assertEquals(len(primes) - 1, intalg.prime_index(97))
-    primes2 = intalg.primes_upto(100)
-    self.assertEquals(primes, primes2)
+    self.assertEquals(primes, intalg.primes_upto(100))
+    self.assertEquals(primes, intalg.primes_upto(97))
 
     intalg._prime_cache[:] = [6, 77, 8]
     primes3 = intalg.primes_upto(100)
