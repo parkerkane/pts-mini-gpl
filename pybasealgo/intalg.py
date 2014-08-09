@@ -514,6 +514,9 @@ def first_primes(i):
   """
   if i <= len(FIRST_PRIMES):
     return map(ord, FIRST_PRIMES[:i])
+  cache = _prime_cache
+  if i <= len(cache):
+    return cache[:i]
   # Make n be an integer at least n * (math.log(n) + math.log(math.log(n))),
   # as given by p_i <= i * ln(i) + i * ln(ln(i)) if i >= 6, based on
   # http://en.wikipedia.org/wiki/Prime-counting_function#Inequalities
