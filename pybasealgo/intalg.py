@@ -568,6 +568,38 @@ def fraction_to_float(a, b):
   return a.__truediv__(b)
 
 
+_prime_cache = []
+_prime_cache_limit_ary = [1]
+
+
+def prime_index(n, limit=256):
+  """Returns the index of n in the prime list if n is prime, otherwise None.
+
+  Args:
+    n: A nonnegative integer.
+    limit: Minimum number of prime cache size to build if needed.
+  Returns:
+    The index of n in the prime list, or None if n is not a prime. For example:
+    prime_index(2) == 0, prime_index(3) == 1, prime_index(4) == None,
+    prime_index(5) == 3.
+  """
+  if n > _prime_cache_limit_ary[0]:
+    while limit < n:
+      limit <<= 1
+    _prime_cache_limit_ary[0] = limit
+    _prime_cache[:] = primes_upto(limit)
+  cache = _prime_cache
+  i = bisect.bisect_left(cache, n)
+  if i >= len(cache) or cache[i] != n:
+    return None  # n is not a prime.
+  return i
+
+
+def clear_prime_cache():
+  _prime_cache_limit_ary[:] = [1]  # For thread safety.
+  del _prime_cache[:]
+
+
 def is_prime(n, accuracy=None):
   """Returns wheter the integer n is probably a prime.
 

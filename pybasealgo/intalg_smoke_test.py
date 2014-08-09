@@ -11,6 +11,12 @@ import intalg
 
 
 class IntalgSmokeTest(unittest.TestCase):
+  def setUp(self):
+    intalg.clear_prime_cache()
+  
+  def tearDown(self):
+    intalg.clear_prime_cache()
+
   def testBitCount(self):
     self.assertEquals(1, intalg.bit_count(0))
     self.assertEquals(1, intalg.bit_count(1))
@@ -221,6 +227,32 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(
         [73, 91, 95, 111, 117, 135, 146, 148, 152, 182, 190,
          216, 222, 228, 234, 252, 270], intalg.inv_totient(72))
+
+  def testPrimeIndex(self):
+    self.assertEquals(2, intalg.prime_index(5))
+    del intalg._prime_cache[:]
+    intalg._prime_cache_limit_ary[:] = [1]
+    self.assertEquals(2, intalg.prime_index(5))
+    self.assertEquals([256], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(2, intalg.prime_index(5))
+    self.assertEquals(None, intalg.prime_index(4))
+    self.assertEquals(1, intalg.prime_index(3))
+    self.assertEquals(0, intalg.prime_index(2))
+    self.assertEquals(None, intalg.prime_index(1))
+    self.assertEquals(None, intalg.prime_index(0))
+    self.assertEquals(None, intalg.prime_index(255))
+    self.assertEquals(len(intalg._prime_cache) - 1, intalg.prime_index(251))
+    self.assertEquals(len(intalg._prime_cache) - 1, intalg.prime_index(251))
+    self.assertEquals([256], intalg._prime_cache_limit_ary[:])
+    # Grows the cache.
+    self.assertEquals(intalg.prime_index(251) + 1, intalg.prime_index(257))
+    self.assertEquals([512], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(intalg.prime_index(251) + 1, intalg.prime_index(257, 600))
+    self.assertEquals([512], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(None, intalg.prime_index(600, 600))
+    self.assertEquals([600], intalg._prime_cache_limit_ary[:])
+    self.assertEquals(109, intalg.prime_index(601, 155))
+    self.assertEquals([620], intalg._prime_cache_limit_ary[:])
 
 
 if __name__ == '__main__':
