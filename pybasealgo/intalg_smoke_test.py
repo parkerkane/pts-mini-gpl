@@ -30,9 +30,9 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(1206, intalg.bit_count(1 << 1205))
     self.assertEquals(1207, intalg.bit_count(1 << 1206))
 
-  def testLog256Table(self):
-    self.assertEquals(257, len(intalg.LOG2_256_TABLE))
-    self.assertEquals(1762, intalg.LOG2_256_TABLE[0x76])
+  def testLog256MoreTable(self):
+    self.assertEquals(257, len(intalg.LOG2_256_MORE_TABLE))
+    self.assertEquals(1762, intalg.LOG2_256_MORE_TABLE[0x76])
 
   def testLog256More(self):
     self.assertEquals(1762, intalg.log2_256_more(0x76))

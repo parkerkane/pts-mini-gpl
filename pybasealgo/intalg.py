@@ -333,7 +333,7 @@ def yield_composites():
 
 
 # struct.pack('>257H', *([0] + [int(math.ceil(math.log(i)/math.log(2)*256)) for i in xrange(1, 257)]))
-LOG2_256_TABLE = struct.unpack('>257H',
+LOG2_256_MORE_TABLE = struct.unpack('>257H',
     '\x00\x00\x00\x00\x01\x00\x01\x96\x02\x00\x02S\x02\x96\x02\xcf\x03\x00\x03'
     ',\x03S\x03v\x03\x96\x03\xb4\x03\xcf\x03\xe9\x04\x00\x04\x17\x04,\x04@\x04'
     'S\x04e\x04v\x04\x87\x04\x96\x04\xa5\x04\xb4\x04\xc2\x04\xcf\x04\xdc\x04'
@@ -376,10 +376,10 @@ def log2_256_more(a):
   if a <= 1:
     return 0
   if a < 256:
-    return LOG2_256_TABLE[a]
+    return LOG2_256_MORE_TABLE[a]
   d = bit_count(a) - 8
   m = a >> d
-  return LOG2_256_TABLE[m + (m << d != a)] + (d << 8)
+  return LOG2_256_MORE_TABLE[m + (m << d != a)] + (d << 8)
 
 
 def log_more(a, b):
