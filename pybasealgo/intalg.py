@@ -233,19 +233,26 @@ A1 = array.array('b', (1,))
 """Helper for primes_upto."""
 
 
+_prime_cache = []
+_prime_cache_limit_ary = [1]
+
+
 def primes_upto(n):
   """Returns a list of prime numbers <= n using the sieve algorithm.
 
   Please note that it uses O(n) memory for the returned list, and O(n) (a
   list of at most n / 2 items) for a temporary bool array.
   """
+  if n <= 1:
+    return []
+  if n <= _prime_cache_limit_ary[0]:
+    cache = _prime_cache
+    return cache[:bisect.bisect_right(cache, n)]
   # Based on http://stackoverflow.com/a/3035188/97248
   # Made it 7.04% faster and use much less memory by using array('b', ...)
   # instead of lists.
   #
   # TODO(pts): Use numpy if available (see the solution there).
-  if n <= 1:
-    return []
   n += 1
   s = A1 * (n >> 1)
   a0 = A0
@@ -568,10 +575,6 @@ def fraction_to_float(a, b):
   return a.__truediv__(b)
 
 
-_prime_cache = []
-_prime_cache_limit_ary = [1]
-
-
 def prime_index(n, limit=256):
   """Returns the index of n in the prime list if n is prime, otherwise None.
 
@@ -586,8 +589,10 @@ def prime_index(n, limit=256):
   if n > _prime_cache_limit_ary[0]:
     while limit < n:
       limit <<= 1
-    _prime_cache_limit_ary[0] = limit
     _prime_cache[:] = primes_upto(limit)
+    # For thread safety and for good _prime_cache interaction between
+    # primes_upto and prime_index, set this after updating _prime_cache.
+    _prime_cache_limit_ary[0] = limit
   cache = _prime_cache
   i = bisect.bisect_left(cache, n)
   if i >= len(cache) or cache[i] != n:

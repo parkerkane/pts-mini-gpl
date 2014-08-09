@@ -129,6 +129,20 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(32.5, intalg.fraction_to_float(2 ** 10005 + 2 ** 9999, 2 ** 10000))
     self.assertEquals(32.5, intalg.fraction_to_float(2 ** 10005 + 2 ** 9999 + 1, 2 ** 10000))
 
+  def testPrimesUpto(self):
+    self.assertEquals([2, 3, 5, 7, 11, 13, 17, 19], intalg.primes_upto(22))
+    self.assertEquals([2, 3, 5, 7, 11, 13, 17, 19, 23], intalg.primes_upto(23))
+    self.assertEquals([2, 3, 5, 7, 11, 13, 17, 19, 23], intalg.primes_upto(24))
+    primes = intalg.primes_upto(100)
+    self.assertEquals(None, intalg.prime_index(100))
+    self.assertEquals(len(primes) - 1, intalg.prime_index(97))
+    primes2 = intalg.primes_upto(100)
+    self.assertEquals(primes, primes2)
+
+    intalg._prime_cache[:] = [6, 77, 8]
+    primes3 = intalg.primes_upto(100)
+    self.assertEquals([6, 77, 8], primes3)  # Because of the fake _prime_cache.
+
   def testYieldSlowFactorize(self):
     self.assertEquals(list(intalg.yield_slow_factorize(1)), [])
     self.assertEquals(list(intalg.yield_slow_factorize(36)), [2, 2, 3, 3])
