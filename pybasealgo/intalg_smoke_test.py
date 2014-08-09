@@ -33,12 +33,15 @@ class IntalgSmokeTest(unittest.TestCase):
   def testLog256MoreTable(self):
     self.assertEquals(257, len(intalg.LOG2_256_MORE_TABLE))
     self.assertEquals(1762, intalg.LOG2_256_MORE_TABLE[0x76])
+    self.assertEquals(1531, intalg.LOG2_256_MORE_TABLE[63])
+    self.assertEquals(1536, intalg.LOG2_256_MORE_TABLE[64])
+    self.assertEquals(1542, intalg.LOG2_256_MORE_TABLE[65])
 
   def testLog256More(self):
-    self.assertEquals(1762, intalg.log2_256_more(0x76))
-    self.assertEquals(6882, intalg.log2_256_more(123456789))
+    self.assertEquals(1762, intalg.log2_256_more(0x76))  # Accurate.
+    self.assertEquals(6882, intalg.log2_256_more(123456789))  # Accurate (by luck).
     self.assertEquals(2048, intalg.log2_256_more(256))
-    self.assertEquals(2051, intalg.log2_256_more(257))  # 2050 would have been enough.
+    self.assertEquals(2051, intalg.log2_256_more(257))  # 2050 is more accurate.
     self.assertEquals(2051, intalg.log2_256_more(258))
     self.assertEquals(2054, intalg.log2_256_more(259))
     self.assertEquals(123 << 8, intalg.log2_256_more(1 << 123))
@@ -46,6 +49,26 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(1204 << 8, intalg.log2_256_more(1 << 1204))
     self.assertEquals(1205 << 8, intalg.log2_256_more(1 << 1205))
     self.assertEquals(1206 << 8, intalg.log2_256_more(1 << 1206))
+
+  def testLog256LessTable(self):
+    self.assertEquals(256, len(intalg.LOG2_256_LESS_TABLE))
+    self.assertEquals(1761, intalg.LOG2_256_LESS_TABLE[0x76])
+    self.assertEquals(1530, intalg.LOG2_256_LESS_TABLE[63])
+    self.assertEquals(1536, intalg.LOG2_256_LESS_TABLE[64])
+    self.assertEquals(1541, intalg.LOG2_256_LESS_TABLE[65])
+
+  def testLog256Less(self):
+    self.assertEquals(1761, intalg.log2_256_less(0x76))  # Accurate.
+    self.assertEquals(6880, intalg.log2_256_less(123456789))  # 6681 is more accurate.
+    self.assertEquals(2048, intalg.log2_256_less(256))
+    self.assertEquals(2048, intalg.log2_256_less(257))  # Same as for 256, last bit ignored.
+    self.assertEquals(2050, intalg.log2_256_less(258))
+    self.assertEquals(2050, intalg.log2_256_less(259))  # Same as for 256, last bit ignored.
+    self.assertEquals(123 << 8, intalg.log2_256_less(1 << 123))
+    self.assertEquals(1203 << 8, intalg.log2_256_less(1 << 1203))
+    self.assertEquals(1204 << 8, intalg.log2_256_less(1 << 1204))
+    self.assertEquals(1205 << 8, intalg.log2_256_less(1 << 1205))
+    self.assertEquals(1206 << 8, intalg.log2_256_less(1 << 1206))
 
   def testLogMore(self):
     b_coeff = 123457 * math.log(3)
