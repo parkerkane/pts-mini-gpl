@@ -1573,3 +1573,51 @@ def inv_totient(t):
               yield v
 
   return sorted(list(generate(0, 1, t)))
+
+
+def yield_fib(a=0, b=1):
+  """Yields the Fibonacci numbers indefinitely, starting with a and then b.
+
+  Also works for non-Fibonacci starting numbers.
+
+  Use fib_pair(...) to start from a large number.
+  """
+  while 1:
+    yield a
+    a, b = b, a + b
+
+
+def fib_pair(n):
+  """Returns the nth and (n+1)th Fibonacci number, fib_pair(0) == (0, 1).
+
+  Uses fast doubling, does O(log n) basic arithmetic operations. (Each
+  operation can be O(n) because of the large numbers involved.)
+  """
+  if n < 0:
+    raise ValueError
+
+  def fib_rec(n):
+    """Returns a tuple (F(n), F(n + 1))."""
+    if n == 0:
+      return 0, 1
+    else:
+      a, b = fib_rec(n >> 1)
+      c = a * ((b << 1) - a)
+      d = b * b + a * a
+      if n & 1:
+        return d, c + d
+      else:
+        return c, d
+
+  return fib_rec(n)
+
+
+def fib(n):
+  """Returns the nth Fibonacci number, fib(0) == 0.
+
+  Uses fast doubling, does O(log n) basic arithmetic operations. (Each
+  operation can be O(n) because of the large numbers involved.)
+
+  If you need consecutive Fibonacci numbers, yield_fib is faster.
+  """
+  return fib_pair(n)[0]

@@ -387,5 +387,20 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([2], primes4)  # Because of the fake empty _prime_cache.
 
 
+  def testFib(self):
+    """Unit tests for fib, yield_fib and fib_pari."""
+    limit = 1000
+    f = intalg.yield_fib()
+    a = []
+    while len(a) < limit:
+      a.append(f.next())
+    self.assertEquals(
+        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987,
+         1597, 2584, 4181], a[:20])
+    self.assertEquals(a, map(intalg.fib, xrange(limit)))
+    self.assertEquals(a, [intalg.fib_pair(x)[0] for x in xrange(limit)])
+    self.assertEquals(a[1:], [intalg.fib_pair(x)[1] for x in xrange(limit - 1)])
+
+
 if __name__ == '__main__':
   unittest.main()
