@@ -1621,3 +1621,58 @@ def fib(n):
   If you need consecutive Fibonacci numbers, yield_fib is faster.
   """
   return fib_pair(n)[0]
+
+
+def yield_fib_mod(m, a=0, b=1):
+  """Yields the Fibonacci numbers mod m indefinitely mod m, starting with a, b.
+
+  Also works for non-Fibonacci starting numbers.
+
+  Use fib_pair(...) to start from a large number.
+  """
+  if not isinstance(m, (int, long)):
+    raise TypeError
+  if m <= 0:
+    raise ValueError
+  a %= m
+  b %= m
+  while 1:
+    yield a
+    a, b = b, (a + b) % m
+
+
+def fib_pair_mod(n, m):
+  """Returns the nth and (n+1)th Fibonacci number mod m,
+  fib_pair(0, m) == (0, 1).
+
+  Uses fast doubling, does O(log n) basic arithmetic operations. (Each
+  operation can be O(n) because of the large numbers involved.)
+  """
+  if n < 0:
+    raise ValueError
+
+  def fib_rec(n):
+    """Returns a tuple (F(n) % m, F(n + 1) % m)."""
+    if n == 0:
+      return 0, 1
+    else:
+      a, b = fib_rec(n >> 1)
+      c = a * ((b << 1) - a) % m
+      d = (b * b + a * a) % m
+      if n & 1:
+        return d, (c + d) % m
+      else:
+        return c, d
+
+  return fib_rec(n)
+
+
+def fib_mod(n, m):
+  """Returns the nth Fibonacci number mod m, fib(0, m) == 0.
+
+  Uses fast doubling, does O(log n) basic arithmetic operations. (Each
+  operation can be O(n) because of the large numbers involved.)
+
+  If you need consecutive Fibonacci numbers, yield_fib is faster.
+  """
+  return fib_pair_mod(n, m)[0]

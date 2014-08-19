@@ -389,7 +389,7 @@ class IntalgSmokeTest(unittest.TestCase):
 
   def testFib(self):
     """Unit tests for fib, yield_fib and fib_pari."""
-    limit = 1000
+    limit = 300
     f = intalg.yield_fib()
     a = []
     while len(a) < limit:
@@ -400,6 +400,42 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(a, map(intalg.fib, xrange(limit)))
     self.assertEquals(a, [intalg.fib_pair(x)[0] for x in xrange(limit)])
     self.assertEquals(a[1:], [intalg.fib_pair(x)[1] for x in xrange(limit - 1)])
+    f = intalg.yield_fib(0, 10)
+    a10 = []
+    while len(a10) < limit:
+      a10.append(f.next())
+    self.assertEquals([10 * x for x in a], a10)
+    f = intalg.yield_fib(*intalg.fib_pair(30))
+    self.assertEquals(a[30], f.next())
+    self.assertEquals(a[31], f.next())
+    self.assertEquals(a[32], f.next())
+
+  def testFibMod(self):
+    """Unit tests for fib, yield_fib and fib_pari."""
+    limit, m = 300, 1000
+    f = intalg.yield_fib_mod(m)
+    a = []
+    while len(a) < limit:
+      a.append(f.next())
+    self.assertEquals(
+        [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987,
+         597, 584, 181], a[:20])
+    self.assertEquals(a, [intalg.fib_mod(x, m) for x in xrange(limit)])
+    self.assertEquals(a, [intalg.fib_pair_mod(x, m)[0] for x in xrange(limit)])
+    self.assertEquals(a[1:], [
+        intalg.fib_pair_mod(x, m)[1] for x in xrange(limit - 1)])
+    self.assertEquals(tuple(a[30 : 32]), intalg.fib_pair_mod(30, m))
+    f = intalg.yield_fib_mod(m, *intalg.fib_pair_mod(30, m))
+    self.assertEquals(a[30], f.next())
+    self.assertEquals(a[31], f.next())
+    self.assertEquals(a[32], f.next())
+    f = intalg.yield_fib_mod(m, 11, 13)
+    a11 = []
+    while len(a11) < 20:
+      a11.append(f.next())
+    self.assertEquals(
+        [11, 13, 24, 37, 61, 98, 159, 257, 416, 673, 89, 762, 851, 613, 464,
+         77, 541, 618, 159, 777], a11)
 
 
 if __name__ == '__main__':
