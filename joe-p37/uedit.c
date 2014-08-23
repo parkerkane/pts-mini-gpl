@@ -2532,3 +2532,34 @@ int upaste(BW  *bw, int k)
 
 	return 0;
 }
+
+int ubrpaste(BW  *bw, int k)
+{
+	int c;
+	int tmp_ww = bw->o.wordwrap;
+	int tmp_ai = bw->o.autoindent;
+	int tmp_sp = bw->o.spaces;
+
+	bw->o.wordwrap = 0;
+	bw->o.autoindent = 0;
+	bw->o.spaces = 0;
+
+	while ((c = ttgetc()) != -1 && c != 033) {
+		if (c == 13)
+			rtntw(bw);
+		else
+			utypebw(bw, c);
+	}
+	/* Terminator is ESC [ 2 0 1 ~ */
+	if (c == 033) {
+		do {
+			c = ttgetc();
+		} while (c != -1 && c != '~');
+	}
+
+	bw->o.wordwrap = tmp_ww;
+	bw->o.autoindent = tmp_ai;
+	bw->o.spaces = tmp_sp;
+
+	return 0;
+}

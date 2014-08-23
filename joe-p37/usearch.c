@@ -18,7 +18,7 @@ B *replhist = NULL;		/* Replacement string history */
 
 SRCH *globalsrch = NULL;	/* Most recent completed search data */
 
-SRCHREC fsr = { {&fsr, &fsr}, 0, 0, 0, 0, 0 };
+SRCHREC fsr = { {&fsr, &fsr}, 0, 0, 0, 0 };
 
 /* Completion stuff: should go somewhere else */
 
@@ -245,8 +245,6 @@ static P *searchf(BW *bw,SRCH *srch, P *p)
 	start = pdup(p, USTR "searchf");
 	end = pdup(p, USTR "searchf");
 
-	try_again:
-
 	for (x = 0; x != sLEN(pattern) && pattern[x] != '\\' && (pattern[x]<128 || !p->b->o.charmap->type); ++x)
 		if (srch->ignore)
 			pattern[x] = joe_tolower(p->b->o.charmap,pattern[x]);
@@ -257,22 +255,12 @@ static P *searchf(BW *bw,SRCH *srch, P *p)
 		if (srch->wrap_flag && start->byte>=srch->wrap_p->byte)
 			break;
 		if (pmatch(srch->pieces, pattern + x, sLEN(pattern) - x, end, 0, srch->ignore)) {
-			if (end->byte == srch->last_repl) {
-				/* Stuck? */
-				pattern = srch->pattern;
-				pset(start, p);
-				if (pgetc(start) == NO_MORE_DATA)
-					break;
-				pset(end, start);
-				goto try_again;
-			} else {
 				srch->entire = vstrunc(srch->entire, (int) (end->byte - start->byte));
 				brmem(start, srch->entire, (int) (end->byte - start->byte));
 				pset(p, end);
 				prm(start);
 				prm(end);
 				return p;
-			}
 		}
 		if (pgetc(start) == NO_MORE_DATA)
 			break;
@@ -283,7 +271,6 @@ static P *searchf(BW *bw,SRCH *srch, P *p)
 		p_goto_bof(start);
 		goto wrapped;
 	}
-	srch->last_repl = -1;
 	prm(start);
 	prm(end);
 	return NULL;
@@ -313,8 +300,6 @@ static P *searchb(BW *bw,SRCH *srch, P *p)
 	start = pdup(p, USTR "searchb");
 	end = pdup(p, USTR "searchb");
 
-	try_again:
-
 	for (x = 0; x != sLEN(pattern) && pattern[x] != '\\' && (pattern[x]<128 || !p->b->o.charmap->type); ++x)
 		if (srch->ignore)
 			pattern[x] = joe_tolower(p->b->o.charmap,pattern[x]);
@@ -327,22 +312,12 @@ static P *searchb(BW *bw,SRCH *srch, P *p)
 		if (srch->wrap_flag && start->byte<srch->wrap_p->byte)
 			break;
 		if (pmatch(srch->pieces, pattern + x, sLEN(pattern) - x, end, 0, srch->ignore)) {
-			if (start->byte == srch->last_repl) {
-				/* Stuck? */
-				pattern = srch->pattern;
-				pset(start, p);
-				if (prgetc(start) == NO_MORE_DATA)
-					break;
-				pset(end, start);
-				goto try_again;
-			} else {
 				srch->entire = vstrunc(srch->entire, (int) (end->byte - start->byte));
 				brmem(start, srch->entire, (int) (end->byte - start->byte));
 				pset(p, start);
 				prm(start);
 				prm(end);
 				return p;
-			}
 		}
 	}
 
@@ -352,7 +327,6 @@ static P *searchb(BW *bw,SRCH *srch, P *p)
 		p_goto_eof(start);
 		goto wrapped;
 	}
-	srch->last_repl = -1;
 	prm(start);
 	prm(end);
 	return NULL;
@@ -396,7 +370,6 @@ SRCH *mksrch(unsigned char *pattern, unsigned char *replacement, int ignore, int
 	srch->entire = NULL;
 	srch->flg = 0;
 	srch->addr = -1;
-	srch->last_repl = -1;
 	srch->markb = NULL;
 	srch->markk = NULL;
 	srch->wrap_p = NULL;
@@ -778,7 +751,6 @@ static int doreplace(BW *bw, SRCH *srch)
 	}
 	insert(srch, bw->cursor, sv(srch->replacement));
 	srch->addr = bw->cursor->byte;
-	srch->last_repl = bw->cursor->byte;
 	if (markk)
 		markk->end = 0;
 	if (srch->markk)
@@ -792,7 +764,6 @@ static void visit(SRCH *srch, BW *bw, int yn)
 	r->addr = bw->cursor->byte;
 	r->yn = yn;
 	r->wrap_flag = srch->wrap_flag;
-	r->last_repl = srch->last_repl;
 	r->b = bw->b;
 	enqueb(SRCHREC, link, &srch->recs, r);
 }
@@ -814,7 +785,6 @@ static void goback(SRCH *srch, BW *bw)
 		if (bw->cursor->byte != r->addr)
 			pgoto(bw->cursor, r->addr);
 		srch->wrap_flag = r->wrap_flag;
-		srch->last_repl = r->last_repl;
 		demote(SRCHREC, link, &fsr, r);
 	}
 }

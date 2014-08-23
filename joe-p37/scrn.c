@@ -570,6 +570,9 @@ SCRN *nopen(CAP *cap)
 	else
 		t->te = jgetstr(t->cap,USTR "te");
 
+	t->brp = USTR "\033[?2004h";
+	t->bre = USTR "\033[?2004l";
+
 	t->ut = getflag(t->cap,USTR "ut");
 	t->Sb = jgetstr(t->cap,USTR "AB");
 	if (!t->Sb) t->Sb = jgetstr(t->cap,USTR "Sb");
@@ -795,6 +798,8 @@ SCRN *nopen(CAP *cap)
 		texec(t->cap, t->ti, 1, 0, 0, 0, 0);
 	if (!skiptop && t->cl)
 		texec(t->cap, t->cl, 1, 0, 0, 0, 0);
+	if (t->brp)
+		texec(t->cap, t->brp, 1, 0, 0, 0, 0);
 
 /* Initialize variable screen size dependant vars */
 	t->wrap_mode = t->li = t->co = t->gtli = t->gtco = 0;
@@ -1559,6 +1564,8 @@ void nescape(SCRN *t)
 	npartial(t);
 	cpos(t, 0, t->li - 1);
 	eraeol(t, 0, t->li - 1, 0);
+	if (t->bre)
+		texec(t->cap, t->bre, 1, 0, 0, 0, 0);
 	if (t->te)
 		texec(t->cap, t->te, 1, 0, 0, 0, 0);
 }
@@ -1570,6 +1577,8 @@ void nreturn(SCRN *t)
 		texec(t->cap, t->ti, 1, 0, 0, 0, 0);
 	if (!skiptop && t->cl)
 		texec(t->cap, t->cl, 1, 0, 0, 0, 0);
+	if (t->brp)
+		texec(t->cap, t->brp, 1, 0, 0, 0, 0);
 	nredraw(t);
 }
 
@@ -1580,6 +1589,8 @@ void nclose(SCRN *t)
 	set_attr(t, 0);
 	setregn(t, 0, t->li);
 	cpos(t, 0, t->li - 1);
+	if (t->bre)
+		texec(t->cap, t->bre, 1, 0, 0, 0, 0);
 	if (t->te)
 		texec(t->cap, t->te, 1, 0, 0, 0, 0);
 	ttclose();

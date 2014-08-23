@@ -848,7 +848,7 @@ int pgetc(P *p)
 		/* Read the rest of the multibyte character. */
 		if (p->valcol) {  /* Do the test before calling pget_restc() */
 			c = pget_restc(p, c);
-			p->valcol = 1;  /* ruined by pget_restc() above */
+			p->valcol = 1;  /* Ruined by pget_restc() above. */
 			p->col += joe_wcwidth(1, c);
 		} else {
 			c = pget_restc(p, c);
@@ -1022,17 +1022,18 @@ P *p_goto_eol(P *p)
 			else {
 				++p->byte;
 				++p->ofst;
+				if (p->ofst == GSIZE(p->hdr))  /* Fixup after ++p->ofst. */
+					pnext(p);
 				if ((c & 0x80) && is_utf8) {
 					p->col += joe_wcwidth(1, pget_restc(p, c));
-				} else if (c == '\t')
+				} else if (c == '\t') {
 					p->col += p->b->o.tab - p->col % p->b->o.tab;
-				else
+				} else {
 					++p->col;
-				if (p->ofst == GSIZE(p->hdr))
-					pnext(p);
+				}
 			}
 		}
-	p->valcol = 1;  /* restore invalidation by pget_restc. */
+	p->valcol = 1;  /* Restore invalidation by pget_restc. */
 	return p;
 }
 
@@ -1149,7 +1150,7 @@ P *pcol(P *p, long goalcol)
 				*p = pbak;
 				break;
 			}
-			p->valcol = 1;  /* in case pget_restc() ruined it */
+			p->valcol = 1;  /* In case pget_restc() has ruined it. */
 		}
 		p->col += wid;
 	} while (p->col != goalcol);

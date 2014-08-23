@@ -41,6 +41,7 @@ CMD cmds[] = {
 	{USTR "bolmenu", TYPEMENU, umbol, NULL, 0, NULL},
 	{USTR "bop", TYPETW + TYPEPW + EFIXXCOL, ubop, NULL, 1, USTR "eop"},
 	{USTR "bos", TYPETW + TYPEPW + EMOVE, ubos, NULL, 0, NULL},
+	{USTR "brpaste", TYPETW + TYPEPW + EMOD, ubrpaste, NULL, 0, NULL},
 	{USTR "bufed", TYPETW, ubufed, NULL, 0, NULL},
 	{USTR "build", TYPETW + TYPEPW, ubuild, NULL, 0, NULL},
 	{USTR "delbuild", TYPETW + TYPEPW, udelbuild, NULL, 0, NULL},

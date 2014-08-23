@@ -14,7 +14,6 @@ struct srchrec {
 	int	wrap_flag;	/* Did we wrap? */
 	long	addr;		/* Where we were */
 	B *b;			/* Buffer address is in */
-	long	last_repl;
 };
 
 struct search {
@@ -35,7 +34,6 @@ struct search {
 	int	allow_wrap;	/* Set to allow wrapping */
 	int	valid;		/* Set if original marks are a valid block */
 	long	addr;		/* Where to place cursor after failed restruct_to_block() test */
-	long	last_repl;	/* Address of last replacement (prevents infinite loops) */
 	int	block_restrict;	/* Search restricted to marked block */
 	int	all;		/* Set to continue in other windows */
 	B	*first;		/* Starting buffer */

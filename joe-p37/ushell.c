@@ -170,7 +170,7 @@ int urun(BW *bw)
 
 static int dobuild(BW *bw, unsigned char *s, void *object, int *notify)
 {
-	int do_del_first = (int)object;
+	int do_del_first = (size_t)object;
 	unsigned char **a;
 	unsigned char *cmd;
 	if (do_del_first) {
@@ -192,7 +192,7 @@ static int build_low(BW *bw, int do_del_first)
 {
 	bw->b->parseone = NULL;  /* Generic parser. */
 	if (buildhist) {
-		if ((bw=wmkpw(bw->parent, joe_gettext(_("Build command: ")), &buildhist, dobuild, USTR "Run", NULL, NULL, (void*)do_del_first, NULL, locale_map, 1))) {
+		if ((bw=wmkpw(bw->parent, joe_gettext(_("Build command: ")), &buildhist, dobuild, USTR "Run", NULL, NULL, (void*)(size_t)do_del_first, NULL, locale_map, 1))) {
 			uuparw(bw);
 			u_goto_eol(bw);
 			bw->cursor->xcol = piscol(bw->cursor);
@@ -201,7 +201,7 @@ static int build_low(BW *bw, int do_del_first)
 			return -1;
 		}
 	} else {
-		if (wmkpw(bw->parent, joe_gettext(_("Enter build command (for example, 'make'): ")), &buildhist, dobuild, USTR "Run", NULL, NULL, (void*)do_del_first, NULL, locale_map, 1)) {
+		if (wmkpw(bw->parent, joe_gettext(_("Enter build command (for example, 'make'): ")), &buildhist, dobuild, USTR "Run", NULL, NULL, (void*)(size_t)do_del_first, NULL, locale_map, 1)) {
 			return 0;
 		} else {
 			return -1;
@@ -229,7 +229,7 @@ static int grep_low(BW *bw, int do_del_first)
 	 * the grep output.
 	 */
 	if (grephist) {
-		if ((bw=wmkpw(bw->parent, joe_gettext(_("Grep command: ")), &grephist, dobuild, USTR "Run", NULL, NULL, (void*)do_del_first, NULL, locale_map, 1))) {
+		if ((bw=wmkpw(bw->parent, joe_gettext(_("Grep command: ")), &grephist, dobuild, USTR "Run", NULL, NULL, (void*)(size_t)do_del_first, NULL, locale_map, 1))) {
 			uuparw(bw);
 			u_goto_eol(bw);
 			bw->cursor->xcol = piscol(bw->cursor);
@@ -238,7 +238,7 @@ static int grep_low(BW *bw, int do_del_first)
 			return -1;
 		}
 	} else {
-		if (wmkpw(bw->parent, joe_gettext(_("Enter grep command (for example, 'grep -n foo *.c'): ")), &grephist, dobuild, USTR "Run", NULL, NULL, (void*)do_del_first, NULL, locale_map, 1)) {
+		if (wmkpw(bw->parent, joe_gettext(_("Enter grep command (for example, 'grep -n foo *.c'): ")), &grephist, dobuild, USTR "Run", NULL, NULL, (void*)(size_t)do_del_first, NULL, locale_map, 1)) {
 			return 0;
 		} else {
 			return -1;
