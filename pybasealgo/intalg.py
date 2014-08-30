@@ -42,7 +42,8 @@ Python has modular exponentiation built-in: pow(a, b, c).
 #   Maybe faster in C, but not in Python.
 #   http://en.wikipedia.org/wiki/Binary_GCD_algorithm
 # TODO(pts): Use faster C modules for all algorithms, e.g.
-#   C code for prime factorization etc. Use gmpy, python-gmp,
+#   C code for prime factorization etc. Use gmpy (has gmpy.is_prime for primt
+#   detection and gmpy.mpq to replace fractions.Fraction), python-gmp,
 #   numpy, sympy, sage (?), scipy. Example:
 #   from gmpy import gcd, invert, mpz, next_prime, sqrt, root.
 # TODO(pts): Add invert (modular inverse) from pyecm. Isn't that too long?
