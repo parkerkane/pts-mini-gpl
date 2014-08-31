@@ -251,18 +251,23 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals([0], intalg.totients_upto(0))
     self.assertEquals([0], intalg.totients_upto(0, force_recursive=1))
     self.assertEquals([0, 1], intalg.totients_upto(1, force_recursive=1))
-    self.assertEquals([0, 1], intalg._totients_upto_iter(1))
+    self.assertEquals([0, 1], intalg._totients_upto_iterative(1))
     self.assertEquals([0, 1, 1], intalg.totients_upto(2, force_recursive=1))
-    self.assertEquals([0, 1, 1], intalg._totients_upto_iter(2))
+    self.assertEquals([0, 1, 1], intalg._totients_upto_iterative(2))
     self.assertEquals(expected, intalg.totients_upto(23))
     self.assertEquals(expected, intalg.totients_upto(23, force_recursive=1))
-    self.assertEquals(expected, intalg._totients_upto_iter(23))
+    self.assertEquals(expected, intalg._totients_upto_iterative(23))
     self.assertEquals(expected, map(intalg.totient, xrange(24)))
+    result = [None] * 24
+    result[0] = 0
+    for n, t in intalg.yield_totients_upto(23):
+      result[n] = t
+    self.assertEquals(expected, result)
     limit = 500
     expected2 = map(intalg.totient, xrange(limit + 1))
     self.assertEquals(expected2, intalg.totients_upto(limit))
     self.assertEquals(expected2, intalg.totients_upto(limit, force_recursive=1))
-    self.assertEquals(expected2, intalg._totients_upto_iter(limit))
+    self.assertEquals(expected2, intalg._totients_upto_iterative(limit))
 
   def testDivisorCountsUpto(self):
     self.assertEquals(

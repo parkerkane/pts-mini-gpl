@@ -1388,14 +1388,16 @@ def totients_upto(limit, force_recursive=False):
     A list of length `limit + 1', whose value at index i is totient(i).
   """
   if limit <= 1:
+    if limit < 0:
+      raise ValueError
     if limit:
       return [0, 1]
     else:
       return [0]
   if not force_recursive and limit <= 1800000:
-    # For small values, _totients_upto_iter is faster. _totients_upto_iter
+    # For small values, _totients_upto_iterative is faster. _totients_upto_iter
     # also uses double memory, so let's not use it for large values.
-    return _totients_upto_iter(limit)
+    return _totients_upto_iterative(limit)
   primes = primes_upto(limit)
   primec = len(primes)
   result = [None] * (limit + 1)
@@ -1426,8 +1428,8 @@ def totients_upto(limit, force_recursive=False):
   return result
 
 
-def _totients_upto_iter(limit):
-  """Like totients_upto, but iterative.
+def _totients_upto_iterative(limit):
+  """Like totients_upto, but iterative, and uses more memory.
 
   Input: limit is an integer >= 1.
   """
@@ -1467,6 +1469,48 @@ def _totients_upto_iter(limit):
       ta *= p
     limit_idx2 = len(ns)
   return result
+
+
+def yield_totients_upto(limit):
+  """Yields Euler totients up to a limit.
+
+  Faster than ((i, totient(i)) for i in xrange(1, 1 + limit)).
+
+  Uses a bit less memory than totients_upto, but it still generates
+  intalg.primes_upto(limit).
+
+  http://en.wikipedia.org/wiki/Euler%27s_totient_function
+
+  Args:
+    limit: Integer >= 1.
+  Yields:
+    (i, totient(n)) pairs for all i (1 <= n <= limit), in undefined order.
+  """
+  yield (1, 1)
+  if limit > 1:
+    primes = primes_upto(limit)
+    primec = len(primes)
+
+    def generate(i, n, t):
+      while 1:
+        p = primes[i]
+        i += 1
+        n0, t0 = n, t
+        n *= p
+        t *= p - 1
+        while n <= limit:
+          yield (n, t)
+          if i < primec:
+            for r in generate(i, n, t):
+              yield r
+          n *= p
+          t *= p
+        n, t = n0, t0
+        if i >= primec or n * primes[i] > limit:
+          break
+
+    for r in generate(0, 1, 1):
+      yield r
 
 
 def divisor_counts_upto(limit):
