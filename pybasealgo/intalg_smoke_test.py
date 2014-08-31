@@ -463,5 +463,18 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertRaises(ValueError, intalg.modinv, 0, 100)
 
 
+  def testCrt2(self):
+    self.assertEquals(intalg.crt2(3, 10, 6, 9), 33)
+    self.assertEquals(intalg.crt2(3, 10, 3, 9), 3)
+    self.assertEquals(intalg.crt2(3, 10, 0, 9), 63)
+    self.assertRaises(ValueError, intalg.crt2, 5, 10, 7, 12)
+    for a1 in xrange(-10, 22):
+      for a2 in xrange(-10, 22):
+        a = intalg.crt2(a1, 10, a2, 9)
+        assert 0 <= a < 90
+        assert a % 10 == a1 % 10
+        assert a % 9 == a2 % 9
+
+
 if __name__ == '__main__':
   unittest.main()

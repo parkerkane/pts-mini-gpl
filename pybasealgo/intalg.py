@@ -1708,3 +1708,19 @@ def modinv(a, b):
       raise ValueError('No modular inverse, not coprime: ' + repr((a0, b0)))
     x0, x1, a, b = x1 - a / b * x0, x0, b, a % b
   return x1 + (x1 < 0 and b0)
+
+
+def crt2(a1, m1, a2, m2):
+  """Compute and return x using the Chinese remainder theorem.
+
+  m1 amd m2 are the moduluses, and they must be coprimes.
+
+  Returns:
+    An integer a which is: 0 <= a < m1 * m2 and a % m1 == a1 and a % m2 == a2.
+  Raises:
+    ValueError: Iff no such unique a exists, i.e. iff gcd(m1, m2) != 1.
+  """
+  a1 %= m1  # Also makes it positive.
+  a2 %= m2  # Also makes it positive.
+  # http://en.wikipedia.org/wiki/Chinese_remainder_theorem#Case_of_two_equations_.28k_.3D_2.29
+  return (m2 * modinv(m2, m1) * a1 + m1 * modinv(m1, m2) * a2) % (m1 * m2)
