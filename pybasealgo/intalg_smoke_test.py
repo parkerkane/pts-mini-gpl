@@ -437,6 +437,31 @@ class IntalgSmokeTest(unittest.TestCase):
         [11, 13, 24, 37, 61, 98, 159, 257, 416, 673, 89, 762, 851, 613, 464,
          77, 541, 618, 159, 777], a11)
 
+  def testModinv(self):
+    self.assertEquals(intalg.modinv(2 ** 8, 7 ** 8), 4301082)
+    self.assertEquals(intalg.modinv(7 ** 8, 2 ** 8), 65)
+    self.assertEquals(intalg.modinv(55, 144), 55)
+    self.assertEquals(intalg.modinv(89, 144), 89)
+    self.assertEquals(intalg.modinv(2, 7), 4)
+    self.assertEquals(intalg.modinv(42, 2017), 1969)
+    self.assertEquals(intalg.modinv(0, 1), 0)
+    self.assertEquals(intalg.modinv(100, 1), 0)
+    self.assertEquals(intalg.modinv(0, 1), 0)
+    self.assertEquals(intalg.modinv(100, 1), 0)
+    self.assertEquals(intalg.modinv(75, 1), 0)
+    self.assertEquals(intalg.modinv(1, 7 ** 8), 1)
+    self.assertEquals(intalg.modinv(1, 7), 1)
+    self.assertEquals(intalg.modinv(1, 2017), 1)
+    self.assertEquals(intalg.modinv(1, 1), 0)
+    self.assertEquals(intalg.modinv(-1, 7 ** 8), 7 ** 8 - 1)
+    self.assertEquals(intalg.modinv(-1, 7), 7 - 1)
+    self.assertEquals(intalg.modinv(-1, 2017), 2017 - 1)
+    self.assertEquals(intalg.modinv(-1, 1), 0)
+    self.assertEquals(intalg.modinv(-1, 6), 5)
+    self.assertRaises(ValueError, intalg.modinv, 2, 4)
+    self.assertRaises(ValueError, intalg.modinv, 5, 75)
+    self.assertRaises(ValueError, intalg.modinv, 0, 100)
+
 
 if __name__ == '__main__':
   unittest.main()

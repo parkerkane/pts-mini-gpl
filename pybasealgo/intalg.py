@@ -1677,3 +1677,34 @@ def fib_mod(n, m):
   If you need consecutive Fibonacci numbers, yield_fib is faster.
   """
   return fib_pair_mod(n, m)[0]
+
+
+def modinv(a, b):
+  """Returns the modular inverse of a, modulo b. b must be positive.
+
+  If gcd(a, b) != 1, then no modular inverse exists, and ValueError is raised.
+
+  Invariant: a * modinv(a, b) % b == 0.
+  """
+  # Implementation inspired by http://rosettacode.org/wiki/Modular_inverse#C
+  # TODO(pts): Is the alternative implementation in pyecm for odd b faster?
+  a0, b0 = a, b
+  if b <= 0:
+    raise ValueError('Modulus must be positive, got args: ' + repr((a0, b0)))
+  a %= b
+  if a < 0:
+    a += b
+  x0, x1 = 0, 1
+  if a == 0:
+    if b == 1:
+      return 0
+    raise ValueError('No modular inverse of 0: ' + repr((a0, b0)))
+  while a > 1:
+    assert -b0 <= x0 < b0
+    assert -b0 <= x1 < b0
+    assert 1 < a <= b0
+    assert 0 <= b <= b0
+    if not b:
+      raise ValueError('No modular inverse, not coprime: ' + repr((a0, b0)))
+    x0, x1, a, b = x1 - a / b * x0, x0, b, a % b
+  return x1 + (x1 < 0 and b0)
