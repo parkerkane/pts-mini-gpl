@@ -1477,7 +1477,7 @@ def yield_totients_upto(limit):
   Faster than ((i, totient(i)) for i in xrange(1, 1 + limit)).
 
   Uses a bit less memory than totients_upto, but it still generates
-  intalg.primes_upto(limit).
+  primes_upto(limit).
 
   http://en.wikipedia.org/wiki/Euler%27s_totient_function
 
@@ -1510,6 +1510,45 @@ def yield_totients_upto(limit):
           break
 
     for r in generate(0, 1, 1):
+      yield r
+
+
+def yield_factorize_upto(limit):
+  """Yields numbers with their factorization up to a limit.
+
+  Faster than ((i, factorize(i)) for i in xrange(1, 1 + limit)).
+
+  Args:
+    limit: Integer >= 1.
+  Yields:
+    (i, factorize(i)) pairs for all i (1 <= n <= limit), in undefined order.
+  """
+  if limit < 1:
+    raise ValueError
+  yield (1, [])
+  if limit > 1:
+    primes = primes_upto(limit)
+    primec = len(primes)
+
+    def generate(i, n, t):  # Doesn't modify t.
+      while 1:
+        p = primes[i]
+        i += 1
+        n0, t0 = n, t
+        n *= p
+        t = t + [p]
+        while n <= limit:
+          yield (n, t[:])
+          if i < primec:
+            for r in generate(i, n, t):
+              yield r
+          n *= p
+          t.append(p)
+        n, t = n0, t0
+        if i >= primec or n * primes[i] > limit:
+          break
+
+    for r in generate(0, 1, []):
       yield r
 
 
