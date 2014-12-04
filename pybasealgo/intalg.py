@@ -1807,3 +1807,41 @@ def crt2(a1, m1, a2, m2):
   a2 %= m2  # Also makes it positive.
   # http://en.wikipedia.org/wiki/Chinese_remainder_theorem#Case_of_two_equations_.28k_.3D_2.29
   return (m2 * modinv(m2, m1) * a1 + m1 * modinv(m1, m2) * a2) % (m1 * m2)
+
+
+def fast_exp_with_func(p, q, mul_func):
+  """Returns p multiplid by itself q times, using mul_func.
+
+  This is the interative version of
+  http://en.wikipedia.org/wiki/Exponentiation_by_squaring
+
+  For example, for integers:
+
+  * p ** q == fast_exp_with_func(p, q, lambda a, b: a * b)
+  * pow(p, q, mod) == fast_exp_with_func(p, q, lambda a, b: a * b % mod) if
+    q >= 2. If q == 1, then fast_exp_with_func(p, q, ...) == p.
+
+  Args:
+    p: Value to be multiplied.
+    q: Number of times to multiply. Must be a positive integer.
+    mul_func: Multiplication function. mul_func must take 2 arguments, and it
+      must be associative (unchecked).
+  """
+  if not isinstance(q, (int, long)):
+    raise TypeError
+  if not callable(mul_func):
+    raise TypeError
+  if q <= 0:
+    raise ValueError(q)
+  while not (q & 1):
+    p = mul_func(p, p)
+    q >>= 1
+  r = p
+  q -= 1
+  while q:
+    if q & 1:
+      r = mul_func(r, p)
+      q -= 1
+    p = mul_func(p, p)
+    q >>= 1
+  return r

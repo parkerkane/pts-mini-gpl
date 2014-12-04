@@ -482,6 +482,19 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(sorted(list(intalg.yield_factorize_upto(100))),
                       [(i, intalg.factorize(i)) for i in xrange(1, 101)])
 
+  def testFastExpWithFunc(self):
+    f = intalg.fast_exp_with_func
+    for p in xrange(2, 12):
+      for q in xrange(1, 33):
+        assert p ** q == f(p, q, lambda a, b: a * b)
+    for p in xrange(2, 12):
+      for q in xrange(1, 33):
+        for mod in xrange(2, 15):
+          if q == 1:
+            assert p == f(p, q, lambda a, b: a * b % mod)
+          else:
+            assert pow(p, q, mod) == f(p, q, lambda a, b: a * b % mod)
+
 
 if __name__ == '__main__':
   unittest.main()
