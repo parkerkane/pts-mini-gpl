@@ -978,12 +978,14 @@ def rle(seq):
 
 def divisor_sum(n):
   """Returns the sum of positive integer divisors of n (including 1 and n)."""
-  if not isinstance(n, (int, long)):
-    raise TypeError
-  if n <= 0:
-    raise ValueError
+  if not isinstance(n, (list, tuple)):
+    if not isinstance(n, (int, long)):
+      raise TypeError
+    if n <= 0:
+      raise ValueError
+    n = factorize(n)
   s = 1
-  for prime, exp in rle(factorize(n)):
+  for prime, exp in rle(n):
     s *= (prime ** (exp + 1) - 1) / (prime - 1)
   return s
 
