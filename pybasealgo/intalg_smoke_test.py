@@ -509,6 +509,50 @@ class IntalgSmokeTest(unittest.TestCase):
                        for i in xrange(1, 101)],
                       expected)
 
+  def testYieldPrimitivePythagoreanTriplesUpto(self):
+    ypptu = intalg.yield_primitive_pythagorean_triples_upto
+    self.assertEquals(sorted(ypptu(0)), [])
+    self.assertEquals(sorted(ypptu(1)), [])
+    self.assertEquals(sorted(ypptu(4)), [])
+    self.assertEquals(sorted(ypptu(5)), [(3, 4, 5)])
+    self.assertEquals(sorted(ypptu(12)), [(3, 4, 5)])
+    self.assertEquals(sorted(ypptu(13)), [(3, 4, 5), (5, 12, 13)])
+    self.assertEquals(sorted(ypptu(20)), [(3, 4, 5), (5, 12, 13), (15, 8, 17)])
+    self.assertEquals(sorted(ypptu(26)),
+                      [(3, 4, 5), (5, 12, 13), (7, 24, 25), (15, 8, 17)])
+
+  def testYieldPythagoreanTriplesUpto(self):
+    yptu = intalg.yield_pythagorean_triples_upto
+    self.assertEquals(sorted(yptu(0)), [])
+    self.assertEquals(sorted(yptu(1)), [])
+    self.assertEquals(sorted(yptu(4)), [])
+    self.assertEquals(sorted(yptu(5)), [(3, 4, 5)])
+    self.assertEquals(sorted(yptu(12)), [(3, 4, 5), (6, 8, 10)])
+    self.assertEquals(sorted(yptu(13)), [(3, 4, 5), (5, 12, 13), (6, 8, 10)])
+    self.assertEquals(sorted(yptu(20)),
+                      [(3, 4, 5), (5, 12, 13), (6, 8, 10), (9, 12, 15),
+                       (12, 16, 20), (15, 8, 17)])
+    self.assertEquals(sorted(yptu(26)),
+                      [(3, 4, 5), (5, 12, 13), (6, 8, 10), (7, 24, 25),
+                       (9, 12, 15), (10, 24, 26), (12, 16, 20), (15, 8, 17),
+                       (15, 20, 25)])
+
+  def testYieldPythagoreanTripleSumsUpto(self):
+    yptsu = intalg.yield_pythagorean_triple_sums_upto
+    self.assertEquals(sorted(yptsu(0)), [])
+    self.assertEquals(sorted(yptsu(1)), [])
+    self.assertEquals(sorted(yptsu(11)), [])
+    self.assertEquals(sorted(yptsu(12)), [12])
+    self.assertEquals(sorted(yptsu(100)),
+                      [12, 24, 30, 36, 40, 48, 56, 60, 60, 70, 72, 80, 84, 84,
+                       90, 90, 96])
+    self.assertEquals(sorted(yptsu(61)),
+                      [12, 24, 30, 36, 40, 48, 56, 60, 60])
+    self.assertEquals(sorted(yptsu(60)),
+                      [12, 24, 30, 36, 40, 48, 56, 60, 60])
+    self.assertEquals(sorted(yptsu(59)),
+                      [12, 24, 30, 36, 40, 48, 56])
+
 
 if __name__ == '__main__':
   unittest.main()
