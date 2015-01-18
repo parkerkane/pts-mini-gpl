@@ -1975,3 +1975,45 @@ def yield_pythagorean_triple_sums_upto(limit):
         # True but slow: assert i + j < sq  # But `i + j < sq - 1' can be false.
         for ss in xrange(uu, limit1, uu):
           yield ss
+
+
+def get_pell_base(dd):
+  """Returns the smallest positive integer pair (x, y) for which x ** 2 - dd
+  * y ** 2 = 1, or (0, 0) if dd is a perfect square (thus no solutions).
+
+  Similar to get_pell_base_ary, but uses less memory (no array).
+
+  Based on http://mathworld.wolfram.com/PellEquation.html :
+
+  If dd is not a perfect square, then the solution (x, y) is (p[r], q[r]) if
+  r is odd, or (p[2*r+1], q[2*r+1]) if r is even. r is the smallest positive
+  index for which a[r+1] == 2 * a[0]. Here a[n] is the continued fraction
+  expansion of sqrt(dd), and p[n]/q[n] is the convergent. Here is how to
+  generate the series:
+
+  a[0] := intalg.sqrt_floor(dd)
+  pp[0] := 0; pp[1] := a[0]; pp[n] := a[n-1] * qq[n-1] - pp[n- 1].
+  qq[0] := 1; qq[1] := dd - a[0]**2; qq[n] := (dd - pp[n]**2) / qq[n-1].
+  a[n] := floor((a[0] + pp[n]) / qq[n])
+  p[0] := a0; p[1] := a[0] * a[1] + 1; p[n] := a[n] * p[n-1] + p[n-2].
+  q[0] := 1; q[1] := a[1]; q[n] := a[n] * q[n-1] + q[n-2].
+  """
+  a0 = sqrt_floor(dd)
+  if a0 ** 2 == dd:
+    return (0, 0)
+  a0d = a0 << 1
+  a1 = a0d // (dd - a0 ** 2)  # Floor, not divisble.
+  an1, ppn1, qqn1 = a1, a0, dd - a0 ** 2
+  pn2, pn1, qn2, qn1 = a0, a0 * a1 + 1, 1, a1
+  n = -2
+  while n:
+    n -= 1
+    ppn1 = an1 * qqn1 - ppn1
+    qqn1 = (dd - ppn1 ** 2) // qqn1  # Always divisible and positive.
+    an1 = (a0 + ppn1) // qqn1  # Floor, not divisible.
+    if n < 0 and an1 == a0d:
+      if n & 1:
+        break
+      n = -2 - n
+    pn2, pn1, qn2, qn1 = pn1, an1 * pn1 + pn2, qn1, an1 * qn1 + qn2
+  return (pn1, qn1)
