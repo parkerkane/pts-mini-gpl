@@ -1554,11 +1554,13 @@ def yield_factorize_upto(limit):
       yield r
 
 
-def divisor_counts_upto(limit):
+def divisor_counts_upto(limit, result=None):
   """Computes the number of divisors of nonnegative integers up to limit.
 
   Args:
     limit: Integer >= 0.
+    result: Optional list (or array) to save the resulting value to. If None,
+      a new list of the right size (limit + 1) will be created.
   Returns:
     A list of length `limit + 1', whose value at index i is the number of
     positive integers who divide i. At index 0, 0 is returned.
@@ -1570,7 +1572,10 @@ def divisor_counts_upto(limit):
       return [0]
   primes = primes_upto(limit)
   primec = len(primes)
-  result = [None] * (limit + 1)
+  if result is None:
+    result = [None] * (limit + 1)
+  else:
+    assert len(result) == limit + 1
   result[0] = 0
   result[1] = 1
 
