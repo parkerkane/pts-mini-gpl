@@ -560,6 +560,27 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(sorted(yptsu(59)),
                       [12, 24, 30, 36, 40, 48, 56])
 
+  def testYieldPythagoreanTriplesPerimeterUpto(self):
+    yptpu = intalg.yield_pythagorean_triples_perimeter_upto
+    self.assertEquals(sorted(yptpu(0)), [])
+    self.assertEquals(sorted(yptpu(1)), [])
+    self.assertEquals(sorted(yptpu(11)), [])
+    self.assertEquals(sorted(yptpu(12)), [(3, 4, 5)])
+    self.assertEquals(sorted(yptpu(100)), [
+        (3, 4, 5), (5, 12, 13), (6, 8, 10), (7, 24, 25), (9, 12, 15), (9,
+        40, 41), (10, 24, 26), (12, 16, 20), (15, 8, 17), (15, 20, 25), (15,
+        36, 39), (18, 24, 30), (21, 20, 29), (21, 28, 35), (24, 32, 40),
+        (30, 16, 34), (35, 12, 37)])
+    expected = [(3, 4, 5), (5, 12, 13), (6, 8, 10), (7, 24, 25),
+                (9, 12, 15), (10, 24, 26), (12, 16, 20), (15, 8, 17),
+                (15, 20, 25)]
+    self.assertEquals(sorted(yptpu(61)), expected)
+    self.assertEquals(sorted(yptpu(60)), expected)
+    self.assertEquals(sorted(yptpu(59)), [
+        (3, 4, 5), (5, 12, 13), (6, 8, 10), (7, 24, 25), (9, 12, 15),
+        (12, 16, 20), (15, 8, 17)])
+    yptsu = intalg.yield_pythagorean_triple_sums_upto
+    self.assertEquals(map(sum, yptpu(60)), list(yptsu(60)))
 
   def testGetPellBase(self):
     assert [intalg.get_pell_base(i) for i in xrange(111)] == [
