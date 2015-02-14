@@ -243,6 +243,40 @@ def clear_prime_cache():
   del _prime_cache[:]
 
 
+def ensure_prime_cache_upto(limit):
+  """Ensures that all primes p for which 2 <= p <= limit are in the prime cache.
+
+  Please note that it's expensive to increase the prime cache size, because
+  for that _prime_cache has to recomputed for scratch, so if you increase by
+  small amounts many times, then please round up to the next power of 2 etc.
+
+  After this function returns, this will be true:
+
+    assert _prime_cache_limit_ary[0] >= limit
+  """
+  if _prime_cache_limit_ary[0] < limit:
+    _prime_cache[:] = primes_upto(limit)
+    # For thread safety and for good _prime_cache interaction between
+    # primes_upto and prime_index, set this after updating _prime_cache.
+    _prime_cache_limit_ary[0] = limit
+
+
+def ensure_prime_cache_size(n):
+  """Ensures that there are at least n primes in the prime cache.
+
+  Please note that it's expensive to increase the prime cache size, because
+  for that _prime_cache has to recomputed for scratch, so if you increase by
+  small amounts many times, then please round up to the next power of 2 etc.
+
+  After this function returns, this will be true:
+
+    assert len(_prime_cache) >= n
+  """
+  if len(_prime_cache) < n:
+    ensure_prime_cache_upto(prime_idx_more(n))
+    assert len(_prime_cache) >= n
+
+
 def primes_upto(n):
   """Returns a list of prime numbers <= n using the sieve algorithm.
 
@@ -419,6 +453,7 @@ def log_more(a, b):
     return 0
   if b == 2:
     # TODO(pts): Do it with smaller numbers for small values of a.
+    # TODO(pts): Add a similar formula for b == 4, b == 8 and b == 16.
     return int((a * 69314718055994531 + 99999999999999999) / 100000000000000000)
 
   # Maple evalf(log(2) / 256, 30): 0.00270760617406228636491106297445
@@ -493,6 +528,53 @@ FIRST_PRIMES = (  # The first 54 primes, i.e. primes less than 256.
 FIRST_PRIMES_MAX = ord(FIRST_PRIMES[-1])
 
 
+def prime_idx_more(i):
+  """Returns a number equal or not much larger than the ith prime.
+
+  Please note that the 1st prime is 2.
+
+  Since the 664580th prime is 10000019, and prime_idx_more(664580) == 10641760,
+  so at this range the returned value is about 6.42% larger than the real one.
+  """
+  #if i <= 2:
+  #  return 2 + (i == 2)
+  if i < len(FIRST_PRIMES):
+    if i < 1:
+      return 2
+    # Don't use _prime_cache here, it would make the return value
+    # nondeterministic.
+    return ord(FIRST_PRIMES[i])
+
+  # This also seems to work, but it saves only a little (10641712 from
+  # 10641760) for large values, and its correctness is unproven.
+  #if i > 35:
+  #  i -= 4
+  #elif i > 26:
+  #  i -= 3
+  #elif i > 17:
+  #  i -= 2
+  #elif i > 10:
+  #  i -= 1
+
+  # Make n be an integer at least n * (math.log(n) + math.log(math.log(n))),
+  # as given by p_i <= i * ln(i) + i * ln(ln(i)) if i >= 6, based on
+  # http://en.wikipedia.org/wiki/Prime-counting_function#Inequalities
+  #
+  # The formula also happens to be correct (manually verified) for i == 3,
+  # i == 4 and i == 5. It's incorrect for i <= 2.
+  return log_more(i, log_more(i, i))
+
+
+# !! Test:
+#ps = primes_upto(1000)
+#print prime_idx_more(len(ps))
+#for i1, p in enumerate(ps):
+#  i = i1 + 1
+#  pm = prime_idx_more(i)
+#  if p > pm:
+#    print (i, p, pm)
+
+
 def first_primes_moremem(i):
   """Returns a list containing the first i primes.
 
@@ -505,10 +587,7 @@ def first_primes_moremem(i):
   if i <= len(cache):
     return cache[:i]
 
-  # Make n be an integer at least n * (math.log(n) + math.log(math.log(n))),
-  # as given by p_i <= i * ln(i) + i * ln(ln(i)) if i >= 6, based on
-  # http://en.wikipedia.org/wiki/Prime-counting_function#Inequalities
-  s = primes_upto(log_more(i, log_more(i, i)))
+  s = primes_upto(prime_idx_more(i))
   del s[i:]
   return s
 
@@ -523,10 +602,7 @@ def first_primes(i):
   cache = _prime_cache
   if i <= len(cache):
     return cache[:i]
-  # Make n be an integer at least n * (math.log(n) + math.log(math.log(n))),
-  # as given by p_i <= i * ln(i) + i * ln(ln(i)) if i >= 6, based on
-  # http://en.wikipedia.org/wiki/Prime-counting_function#Inequalities
-  n = log_more(i, log_more(i, i))
+  n = prime_idx_more(i)
   # The rest is equivalent to this, but the rest saves memory by not creating
   # a long temporary list, and it's about 9.1% slower.
   #
@@ -605,10 +681,7 @@ def prime_index(n, limit=256):
   if n > _prime_cache_limit_ary[0]:
     while limit < n:
       limit <<= 1
-    _prime_cache[:] = primes_upto(limit)
-    # For thread safety and for good _prime_cache interaction between
-    # primes_upto and prime_index, set this after updating _prime_cache.
-    _prime_cache_limit_ary[0] = limit
+    ensure_prime_cache_upto(limit)
   cache = _prime_cache
   i = bisect.bisect_left(cache, n)
   if i >= len(cache) or cache[i] != n:
@@ -616,7 +689,7 @@ def prime_index(n, limit=256):
   return i
 
 
-def prime_count(n, limit=256):
+def prime_count_cached(n, limit=256):
   """Returns the number of primes at most n.
 
   This is pi(n), the prime-counting function:
@@ -641,6 +714,17 @@ def prime_count(n, limit=256):
     # primes_upto and prime_index, set this after updating _prime_cache.
     _prime_cache_limit_ary[0] = limit
   return bisect.bisect_right(_prime_cache, n)
+
+
+PRIME_COUNTS_STR_127 = (
+    '\0\0\1\2\2\3\3\4\4\4\4\5\5\6\6\6\6\7\7\10\10\10\10\t\t\t\t\t'
+    '\t\n\n\x0b\x0b\x0b\x0b\x0b\x0b\x0c\x0c\x0c\x0c\r\r\x0e\x0e\x0e'
+    '\x0e\x0f\x0f\x0f\x0f\x0f\x0f\x10\x10\x10\x10\x10\x10\x11\x11'
+    '\x12\x12\x12\x12\x12\x12\x13\x13\x13\x13\x14\x14\x15\x15\x15'
+    '\x15\x15\x15\x16\x16\x16\x16\x17\x17\x17\x17\x17\x17\x18\x18'
+    '\x18\x18\x18\x18\x18\x18\x19\x19\x19\x19\x1a\x1a\x1b\x1b\x1b'
+    '\x1b\x1c\x1c\x1d\x1d\x1d\x1d\36\36\36\36\36\36\36\36\36\36\36'
+    '\36\36\36')
 
 
 def prime_count_more(n, accuracy=100000):
@@ -670,15 +754,7 @@ def prime_count_more(n, accuracy=100000):
   if n < 0:
     return 0  # Accurate.
   if n < 127:  # Accurate value from lookup table.
-    return ord('\0\0\1\2\2\3\3\4\4\4\4\5\5\6\6\6\6\7\7\10\10\10\10\t\t\t\t\t'
-               '\t\n\n\x0b\x0b\x0b\x0b\x0b\x0b\x0c\x0c\x0c\x0c\r\r\x0e\x0e\x0e'
-               '\x0e\x0f\x0f\x0f\x0f\x0f\x0f\x10\x10\x10\x10\x10\x10\x11\x11'
-               '\x12\x12\x12\x12\x12\x12\x13\x13\x13\x13\x14\x14\x15\x15\x15'
-               '\x15\x15\x15\x16\x16\x16\x16\x17\x17\x17\x17\x17\x17\x18\x18'
-               '\x18\x18\x18\x18\x18\x18\x19\x19\x19\x19\x1a\x1a\x1b\x1b\x1b'
-               '\x1b\x1c\x1c\x1d\x1d\x1d\x1d\36\36\36\36\36\36\36\36\36\36\36'
-               '\36\36\36'[n])
-
+    return ord(PRIME_COUNTS_STR_127[n])
   if (accuracy >= 100000 or n > 302976 or (accuracy >= 50000 and n > 546) or
       (accuracy >= 10000 and n > 11775) or (accuracy >= 5000 and n > 48382) or
       (accuracy >= 4000 and n > 70143)

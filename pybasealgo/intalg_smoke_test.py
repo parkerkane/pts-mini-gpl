@@ -320,33 +320,44 @@ class IntalgSmokeTest(unittest.TestCase):
     self.assertEquals(109, intalg.prime_index(601, limit=155))
     self.assertEquals([620], intalg._prime_cache_limit_ary[:])
 
-  def testPrimeCount(self):
-    self.assertEquals(3, intalg.prime_count(6))
-    self.assertEquals(3, intalg.prime_count(5))
+  def testPrimeCountCached(self):
+    self.assertEquals(3, intalg.prime_count_cached(6))
+    self.assertEquals(3, intalg.prime_count_cached(5))
     self.assertEquals([256], intalg._prime_cache_limit_ary[:])
-    self.assertEquals(3, intalg.prime_count(5))
-    self.assertEquals(2, intalg.prime_count(4))
-    self.assertEquals(2, intalg.prime_count(3))
-    self.assertEquals(1, intalg.prime_count(2))
-    self.assertEquals(0, intalg.prime_count(1))
-    self.assertEquals(0, intalg.prime_count(0))
-    self.assertEquals(54, intalg.prime_count(255))
-    self.assertEquals(len(intalg._prime_cache), intalg.prime_count(251))
-    self.assertEquals(len(intalg._prime_cache), intalg.prime_count(251))
+    self.assertEquals(3, intalg.prime_count_cached(5))
+    self.assertEquals(2, intalg.prime_count_cached(4))
+    self.assertEquals(2, intalg.prime_count_cached(3))
+    self.assertEquals(1, intalg.prime_count_cached(2))
+    self.assertEquals(0, intalg.prime_count_cached(1))
+    self.assertEquals(0, intalg.prime_count_cached(0))
+    self.assertEquals(54, intalg.prime_count_cached(255))
+    self.assertEquals(len(intalg._prime_cache), intalg.prime_count_cached(251))
+    self.assertEquals(len(intalg._prime_cache), intalg.prime_count_cached(251))
     self.assertEquals([256], intalg._prime_cache_limit_ary[:])
     # Grows the cache.
-    self.assertEquals(intalg.prime_count(251) + 1, intalg.prime_count(257))
+    self.assertEquals(intalg.prime_count_cached(251) + 1,
+                      intalg.prime_count_cached(257))
     self.assertEquals([512], intalg._prime_cache_limit_ary[:])
-    self.assertEquals(intalg.prime_count(251) + 1, intalg.prime_count(257, 600))
+    self.assertEquals(intalg.prime_count_cached(251) + 1,
+                      intalg.prime_count_cached(257, 600))
     self.assertEquals([512], intalg._prime_cache_limit_ary[:])
-    self.assertEquals(109, intalg.prime_count(600, 600))
+    self.assertEquals(109, intalg.prime_count_cached(600, 600))
     self.assertEquals([600], intalg._prime_cache_limit_ary[:])
-    self.assertEquals(110, intalg.prime_count(601, limit=155))
+    self.assertEquals(110, intalg.prime_count_cached(601, limit=155))
     self.assertEquals([620], intalg._prime_cache_limit_ary[:])
-    self.assertEquals(110, intalg.prime_count(602))
+    self.assertEquals(110, intalg.prime_count_cached(602))
+
+  def testPrimeCount(self):
+    intalg.clear_prime_cache()
+    prime_counts1 = map(intalg.prime_count_cached, xrange(3000))
+    intalg.clear_prime_cache()
+    prime_counts2 = map(intalg.prime_count_cached, xrange(3000))
+    prime_counts2 = map(intalg.prime_count_cached, xrange(3000))
+    # TODO(pts): Add tests for prime_count_lowmem.
+    self.assertEquals(prime_counts1, prime_counts2)
 
   def testPrimeCountMore(self):
-    prime_counts = map(intalg.prime_count, xrange(3000))
+    prime_counts = map(intalg.prime_count_cached, xrange(3000))
     prime_counts2 = map(intalg.prime_count_more, xrange(3000))
     self.assertEquals([True], list(set((
         a <= b for a, b in zip(prime_counts, prime_counts2)))))
