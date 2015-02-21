@@ -2145,3 +2145,16 @@ def get_pell_base(dd):
       n = -2 - n
     pn2, pn1, qn2, qn1 = pn1, an1 * pn1 + pn2, qn1, an1 * qn1 + qn2
   return (pn1, qn1)
+
+
+def yield_rle_factorize_factorial(n):
+  """Yields the RLEd prime factorization of factorial(n)."""
+  if n < 0:
+    raise ValueError
+  for p in primes_upto(n):
+    a = 0
+    np = n / p
+    while np:
+      a += np
+      np /= p
+    yield (p, a)

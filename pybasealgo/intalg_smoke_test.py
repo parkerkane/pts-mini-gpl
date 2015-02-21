@@ -615,6 +615,21 @@ class IntalgSmokeTest(unittest.TestCase):
         3115890), (962, 93), (1351, 130), (158070671986249, 15140424455100),
         (21, 2)]
 
+  def testYieldRleFactorizeFactorial(self):
+    f = intalg.yield_rle_factorize_factorial
+    self.assertEquals((), tuple(f(0)))
+    self.assertEquals((), tuple(f(1)))
+    self.assertEquals(((2, 1),), tuple(f(2)))
+    self.assertEquals(((2, 1), (3, 1)), tuple(f(3)))
+    self.assertEquals(((2, 3), (3, 1)), tuple(f(4)))
+    self.assertEquals(((2, 3), (3, 1), (5, 1)), tuple(f(5)))
+    self.assertEquals(
+        ((2, 117), (3, 59), (5, 28), (7, 19), (11, 12), (13, 9), (17, 7),
+         (19, 6), (23, 5), (29, 4), (31, 3), (37, 3), (41, 3), (43, 2),
+         (47, 2), (53, 2), (59, 2), (61, 2), (67, 1), (71, 1), (73, 1),
+         (79, 1), (83, 1), (89, 1), (97, 1), (101, 1), (103, 1), (107, 1),
+         (109, 1), (113, 1)), tuple(f(123)))
+
 
 if __name__ == '__main__':
   unittest.main()
